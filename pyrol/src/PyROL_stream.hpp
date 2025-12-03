@@ -30,6 +30,11 @@ namespace ROL {
     Teuchos::RCP<std::ostream> out = Teuchos::rcp(&std::cout, false);
     return out;
   }
+
+  std::stringstream openStringstream() {
+    std::stringstream outdata;
+    return outdata;
+  }
 }
 
 #endif // PYROL_STREAM
