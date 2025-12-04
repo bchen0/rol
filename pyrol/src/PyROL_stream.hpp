@@ -31,10 +31,10 @@ namespace ROL {
     return out;
   }
 
-  // std::stringstream openStringstream() {
-  //   std::stringstream outdata;
-  //   return outdata;
-  // }
+  std::stringstream openStringstream() {
+    std::stringstream outdata;
+    return outdata;
+  }
 }
 
 #endif // PYROL_STREAM
