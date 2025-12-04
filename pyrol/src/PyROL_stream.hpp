@@ -16,25 +16,25 @@
 
 namespace ROL {
 
-  std::ofstream openOfstream(std::string filename){
-    std::ofstream outdata;
-    outdata.open(filename);
-    return outdata;
-  }
+  // std::ofstream openOfstream(std::string filename){
+  //   std::ofstream outdata;
+  //   outdata.open(filename);
+  //   return outdata;
+  // }
 
-  void closeOfstream(std::ofstream &outdata) {
-    outdata.close();
-  }
+  // void closeOfstream(std::ofstream &outdata) {
+  //   outdata.close();
+  // }
 
   Teuchos::RCP<std::ostream> getCout() {
     Teuchos::RCP<std::ostream> out = Teuchos::rcp(&std::cout, false);
     return out;
   }
 
-  std::stringstream openStringstream() {
-    std::stringstream outdata;
-    return outdata;
-  }
+  // std::stringstream openStringstream() {
+  //   std::stringstream outdata;
+  //   return outdata;
+  // }
 }
 
 #endif // PYROL_STREAM
