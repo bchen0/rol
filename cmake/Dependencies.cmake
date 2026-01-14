@@ -1,7 +1,7 @@
 #SET(SUBPACKAGES_DIRS_CLASSIFICATION_OPTREQS
   # SubPackageName       Directory       Class       Req/Opt
 #  xrol                   experimental    EX          OPTIONAL
-#)      
+#)
 
 SET(LIB_REQUIRED_DEP_PACKAGES Teuchos)
 SET(LIB_OPTIONAL_DEP_PACKAGES Belos Tpetra Thyra Sacado Intrepid2 MiniTensor Shards Amesos2 Ifpack2 MueLu Tempus)SET(TEST_REQUIRED_DEP_PACKAGES)
