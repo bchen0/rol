@@ -35,7 +35,7 @@ jobs:
         ctest --test-dir ../binder-build --output-on-failure
         cmake --install ../binder-build
     - name: Clone Trilinos
-      run: git clone https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
+      run: git clone --branch trilinos-release-16-2-0 https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
     - name: Copy ROL
       run: rsync -ar --delete . ../trilinos/packages/rol
     - name: Write version
@@ -51,9 +51,9 @@ jobs:
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
               -D CPACK_SOURCE_IGNORE_FILES="/packages/rol/example;/packages/rol/test;/packages/rol/tutorial;/packages/teuchos/core/test;/packages/teuchos/core/example;/packages/teuchos/numerics/test;/packages/teuchos/numerics/example;/packages/teuchos/parameterlist/test;/packages/teuchos/parameterlist/example;/packages/teuchos/parser/test;/packages/teuchos/parser/example;/packages/teuchos/remainder/test;/packages/teuchos/remainder/example;/packages/teuchos/comm/test;/packages/teuchos/comm/example" \
               -D BUILD_SHARED_LIBS:BOOL=ON \
-              -D ROL_ENABLE_EXAMPLES:BOOL=OFF \
+              -D ROL_ENABLE_EXAMPLES:BOOL=ON \
               -D ROL_ENABLE_PYROL:BOOL=ON \
-              -D ROL_ENABLE_TESTS:BOOL=OFF \
+              -D ROL_ENABLE_TESTS:BOOL=ON \
               -D PyROL_BINDER_clang_include_dirs:PATH="${LLVM_PREFIX}/include" \
               -D PyROL_BINDER_LibClang_include_dir:PATH="${LLVM_PREFIX}/lib/clang/${LLVM_VERSION}/include" \
               -D PyROL_BINDER_GCC_TOOLCHAIN:PATH="${GCC_PREFIX}" \
@@ -66,6 +66,13 @@ jobs:
               -D Trilinos_ENABLE_Fortran:BOOL=OFF \
               -D Trilinos_ENABLE_ROL:BOOL=ON \
               -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+              -D TPL_ENABLE_gtest=OFF \
+              -D Trilinos_ENABLE_Intrepid:BOOL=ON \
+              -D Trilinos_ENABLE_Ifpack2:BOOL=ON \
+              -D Trilinos_ENABLE_MueLu:BOOL=ON \
+              -D Trilinos_ENABLE_Amesos2:BOOL=ON \
+              -D Trilinos_ENABLE_Tpetra:BOOL=ON \
+              -D ROL_ENABLE_Tpetra:BOOL=ON \
               -B ../trilinos-build \
               ../trilinos
     - name: Create reduced tarball (ROL + Binder files + Teuchos)
