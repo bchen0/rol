@@ -171,6 +171,7 @@ list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed/vector")
 
 # Try to include PDE-OPT/dynamic/navier-stokes examples
 list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/dynamic/navvier-stokes")
+list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/TOOLS")
 
 IF (PYROL_GENERATE_SRC)
   MESSAGE("-- PyROL_BINDER_EXECUTABLE:")

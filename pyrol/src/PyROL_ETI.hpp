@@ -35,6 +35,13 @@
 #include <ROL_Vector.hpp>
 #include <ROL_Vector_SimOpt.hpp>
 
+#include <meshmanager.hpp>
+#include <dynpde_navier-stokes.hpp>
+#include <dynconstraint.hpp>
+#include <assembler.hpp>
+#include <pdevector.hpp>
+
+
 #define BINDER_ETI_ABSTRACT(CLASS_NAME) \
   template class CLASS_NAME;
 
@@ -76,6 +83,17 @@
 #define BINDER_ROL_OED(SCALAR) \
   BINDER_ETI_ABSTRACT(Factory<SCALAR>)
 
+#define BINDER_ROL_PDEOPT_TOOLS(SCALAR) \
+  BINDER_ETI_ABSTRACT(MeshManager<SCALAR>) \
+  BINDER_ETI_ABSTRACT(DynamicPDE_NavierStokes<SCALAR>) \
+  BINDER_ETI_ABSTRACT(DynConstraint<SCALAR>) \
+  BINDER_ETI_ABSTRACT(Assembler<SCALAR>) \
+  BINDER_ETI_ABSTRACT(PDE_PrimalSimVector<SCALAR>) \
+  BINDER_ETI_ABSTRACT(PDE_DualSimVector<SCALAR>) \
+  BINDER_ETI_ABSTRACT(PDE_PrimalOptVector<SCALAR>) \
+  BINDER_ETI_ABSTRACT(PDE_OptVector<SCALAR>) 
+
+
 namespace ROL {
 
   BINDER_ROL_CORE(double)
@@ -90,6 +108,8 @@ namespace details {
 // namespace OED {
 //   BINDER_ROL_OED(double)
 // }
+
+BINDER_ROL_PDEOPT_TOOLS(double)
 
 }
 
