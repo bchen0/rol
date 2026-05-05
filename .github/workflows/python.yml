@@ -50,7 +50,11 @@ jobs:
         echo "LLVM_PREFIX=/usr/lib/llvm-15" >> $GITHUB_ENV
         echo "LLVM_VERSION=15" >> $GITHUB_ENV
         echo "GCC_PREFIX=/usr" >> $GITHUB_ENV
+    - name: Enable verbose ninja
+      run: echo "NINJA_STATUS=[%f/%t] " >> $GITHUB_ENV
     - name: Configure (requires running Binder)
+      id: configure_trilinos
+      continue-on-error: true
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
@@ -79,7 +83,73 @@ jobs:
               -D Trilinos_ENABLE_Tpetra:BOOL=ON \
               -D ROL_ENABLE_Tpetra:BOOL=ON \
               -B ../trilinos-build \
+              -D CMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+              -D CMAKE_MESSAGE_LOG_LEVEL:STRING=VERBOSE \
               ../trilinos
+              
+    - name: Debug after configure
+      if: always()
+      run: |
+        set -euxo pipefail
+
+        echo "=== Did CMakeCache get created? ==="
+        ls -la ../trilinos-build || true
+        test -f ../trilinos-build/CMakeCache.txt && echo "CMakeCache exists" || echo "No CMakeCache"
+
+        echo "=== Search for Intrepid_FieldContainer.hpp in source tree ==="
+        find ../trilinos -name "Intrepid_FieldContainer.hpp" -print || true
+
+        echo "=== Search for Intrepid_FieldContainer.hpp in build tree ==="
+        find ../trilinos-build -name "Intrepid_FieldContainer.hpp" -print || true
+
+        echo "=== Dump Intrepid-related cache lines ==="
+        if test -f ../trilinos-build/CMakeCache.txt; then
+          grep -E "Trilinos_ENABLE_Intrepid|Trilinos_ENABLE_Intrepid2|Intrepid" ../trilinos-build/CMakeCache.txt || true
+        fi
+
+        echo "=== Dump binder-related cache lines ==="
+        if test -f ../trilinos-build/CMakeCache.txt; then
+          grep -E "PyROL_BINDER|BINDER|LIBCLANG|clang_include" ../trilinos-build/CMakeCache.txt || true
+        fi
+
+        echo "=== If include_tmp was generated, show offending header ==="
+        if test -f ../trilinos-build/packages/rol/pyrol/include_tmp/meshmanager.hpp; then
+          sed -n '1,80p' ../trilinos-build/packages/rol/pyrol/include_tmp/meshmanager.hpp
+        fi
+
+        echo "=== Check compile_commands.json ==="
+        ls -la ../trilinos-build/compile_commands.json || true
+        if test -f ../trilinos-build/compile_commands.json; then
+          echo "=== Entries mentioning include_tmp ==="
+          grep -n "include_tmp" ../trilinos-build/compile_commands.json || true
+
+          echo "=== Entries mentioning meshmanager.hpp ==="
+          grep -n "meshmanager.hpp" ../trilinos-build/compile_commands.json || true
+
+          echo "=== Entries mentioning packages/intrepid/src ==="
+          grep -n "packages/intrepid/src" ../trilinos-build/compile_commands.json || true
+        fi
+
+        echo "=== Search build tree for binder/clang commands ==="
+        grep -RIn -- "clang" ../trilinos-build/packages/rol/pyrol ../trilinos-build/CMakeFiles | head -n 200 || true
+        grep -RIn -- "include_tmp" ../trilinos-build/packages/rol/pyrol ../trilinos-build/CMakeFiles | head -n 200 || true
+
+        echo "=== Show CMakeError.log if present ==="
+        if test -f ../trilinos-build/CMakeFiles/CMakeError.log; then
+          tail -n 200 ../trilinos-build/CMakeFiles/CMakeError.log
+        fi
+
+        echo "=== Show CMakeOutput.log if present ==="
+        if test -f ../trilinos-build/CMakeFiles/CMakeOutput.log; then
+          tail -n 200 ../trilinos-build/CMakeFiles/CMakeOutput.log
+        fi
+
+    - name: Stop if configure failed
+      if: steps.configure_trilinos.outcome != 'success'
+      run: |
+        echo "Configure failed; stopping after diagnostics."
+        exit 1
+
     - name: Create reduced tarball (ROL + Binder files + Teuchos)
       run: |
         cmake --build ../trilinos-build --target package_source
