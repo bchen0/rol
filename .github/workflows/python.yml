@@ -45,6 +45,11 @@ jobs:
         # VERSION="$(date +%Y.%m.%d).dev$(date +%H%M)$(git rev-parse --abbrev-ref HEAD)$(git rev-parse --short HEAD)"
         VERSION="$(date +%Y.%m.%d).dev$(date +%H%M)"
         sed -i "s/version = \"VERSION\"/version = \"${VERSION}\"/" ../trilinos/pyproject.toml
+    - name: Set LLVM/GCC environment
+      run: |
+        echo "LLVM_PREFIX=/usr/lib/llvm-15" >> $GITHUB_ENV
+        echo "LLVM_VERSION=15" >> $GITHUB_ENV
+        echo "GCC_PREFIX=/usr" >> $GITHUB_ENV
     - name: Configure (requires running Binder)
       run: |
         cmake -G Ninja \
@@ -54,7 +59,7 @@ jobs:
               -D ROL_ENABLE_EXAMPLES:BOOL=ON \
               -D ROL_ENABLE_PYROL:BOOL=ON \
               -D ROL_ENABLE_TESTS:BOOL=ON \
-              -D PyROL_BINDER_clang_include_dirs:PATH="${LLVM_PREFIX}/include" \
+              -D PyROL_BINDER_clang_include_dirs:STRING="../trilinos/packages/intrepid/src;../trilinos/packages/intrepid/src/Shared;${LLVM_PREFIX}/include" \
               -D PyROL_BINDER_LibClang_include_dir:PATH="${LLVM_PREFIX}/lib/clang/${LLVM_VERSION}/include" \
               -D PyROL_BINDER_GCC_TOOLCHAIN:PATH="${GCC_PREFIX}" \
               -D PYROL_ENABLE_BINDER:BOOL=ON \
