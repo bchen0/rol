@@ -46,6 +46,7 @@ jobs:
         VERSION="$(date +%Y.%m.%d).dev$(date +%H%M)"
         sed -i "s/version = \"VERSION\"/version = \"${VERSION}\"/" ../trilinos/pyproject.toml
     - name: Configure (requires running Binder)
+      continue-on-error: true
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
@@ -75,6 +76,40 @@ jobs:
               -D ROL_ENABLE_Tpetra:BOOL=ON \
               -B ../trilinos-build \
               ../trilinos
+    - name: Debug after failed configure
+      if: always()
+      run: |
+        set -euxo pipefail
+
+        echo "=== Did CMakeCache get created? ==="
+        ls -la ../trilinos-build || true
+        test -f ../trilinos-build/CMakeCache.txt && echo "CMakeCache exists" || echo "No CMakeCache"
+
+        echo "=== Search for Intrepid_FieldContainer.hpp in source tree ==="
+        find ../trilinos -name "Intrepid_FieldContainer.hpp" -print || true
+
+        echo "=== Search for Intrepid_FieldContainer.hpp in build tree ==="
+        find ../trilinos-build -name "Intrepid_FieldContainer.hpp" -print || true
+
+        echo "=== Dump Intrepid-related cache lines (if cache exists) ==="
+        if test -f ../trilinos-build/CMakeCache.txt; then
+          grep -E "Trilinos_ENABLE_Intrepid|Trilinos_ENABLE_Intrepid2|Intrepid" ../trilinos-build/CMakeCache.txt || true
+        fi
+
+        echo "=== If include_tmp was generated, show offending include ==="
+        if test -f ../trilinos-build/packages/rol/pyrol/include_tmp/meshmanager.hpp; then
+          sed -n '1,80p' ../trilinos-build/packages/rol/pyrol/include_tmp/meshmanager.hpp
+        fi
+
+        echo "=== Show last CMake error log (if present) ==="
+        if test -f ../trilinos-build/CMakeFiles/CMakeError.log; then
+          tail -n 200 ../trilinos-build/CMakeFiles/CMakeError.log
+        fi
+
+        echo "=== Show last CMake output log (if present) ==="
+        if test -f ../trilinos-build/CMakeFiles/CMakeOutput.log; then
+          tail -n 200 ../trilinos-build/CMakeFiles/CMakeOutput.log
+        fi
     - name: Create reduced tarball (ROL + Binder files + Teuchos)
       run: |
         cmake --build ../trilinos-build --target package_source
