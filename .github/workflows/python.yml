@@ -154,6 +154,12 @@ jobs:
         echo "=== Search build files for Intrepid_FieldContainer.hpp mentions ==="
         grep -RIn -- "Intrepid_FieldContainer.hpp" ../trilinos-build | head -n 200 || true
 
+        echo "=== Search source/build trees for PyROL_BINDER_clang_include_dirs consumption ==="
+        grep -RIn -- "PyROL_BINDER_clang_include_dirs" ../trilinos/packages/rol ../trilinos-build | head -n 200 || true
+
+        echo "=== Search source/build trees for binder command generation ==="
+        grep -RIn -- "binder" ../trilinos/packages/rol/pyrol ../trilinos-build/packages/rol/pyrol | head -n 200 || true
+
     - name: Stop if configure failed
       if: steps.configure_trilinos.outcome != 'success'
       run: |
