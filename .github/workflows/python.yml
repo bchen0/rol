@@ -71,6 +71,7 @@ jobs:
               -D CMAKE_CXX_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared" \
               -D CMAKE_C_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared" \              
               -D PyROL_BINDER_GCC_TOOLCHAIN:PATH="${GCC_PREFIX}" \
+              -D PyROL_BINDER_LibClang_include_dir:PATH="${LLVM_PREFIX}/lib/clang/${LLVM_VERSION}/include" \
               -D PYROL_ENABLE_BINDER:BOOL=ON \
               -D PYROL_ENABLE_BINDER_UPDATE:BOOL=ON \
               -D Trilinos_CPACK_SOURCE_GENERATOR="TGZ" \
