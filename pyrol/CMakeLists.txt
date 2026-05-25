@@ -299,6 +299,7 @@ IF (PYROL_GENERATE_SRC)
   foreach(_inc ${PyROL_BINDER_clang_include_dirs})
     list(APPEND BINDER_OPTIONS -I${_inc})
   endforeach()
+
   list(APPEND BINDER_OPTIONS -iwithsysroot${PyROL_BINDER_LibClang_include_dir})
   IF(PyROL_BINDER_GCC_TOOLCHAIN)
     list(APPEND BINDER_OPTIONS --gcc-toolchain=${PyROL_BINDER_GCC_TOOLCHAIN})
