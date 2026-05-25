@@ -26,6 +26,7 @@ def rewrite_include_line(line):
     if not stripped.startswith('#include'):
         return line
 
+    # Never touch angle-bracket includes
     if '<' in stripped and '>' in stripped:
         return line
 
@@ -37,17 +38,17 @@ def rewrite_include_line(line):
 
     target = line[first_quote + 1:second_quote]
 
-    # Preserve local/same-directory includes
-    if target.startswith('./'):
-        return line
+    # Only rewrite a very small set of known legacy includes
+    special_map = {
+        "../../TOOLS/dynpde.hpp": "TOOLS/dynpde.hpp",
+        "../TOOLS/dynpde.hpp": "TOOLS/dynpde.hpp",
+    }
 
-    # Rewrite only parent-relative includes
-    if target.startswith('../'):
-        new_target = normalize_relative_include_target(target)
+    if target in special_map:
+        new_target = special_map[target]
         return line[:first_quote] + '<' + new_target + '>' + line[second_quote + 1:]
 
     return line
-
 
 def make_all_includes(all_include_filename, folders):
     all_includes = []
