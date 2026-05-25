@@ -14,7 +14,6 @@ def get_without_subfolder(line):
     return line[:first_index+1]+line[last_index+1:]
 
 def normalize_include_target(target):
-    # Leave some known problematic generated CUDA includes alone
     if target in [
         'storage_class.h',
         'cuda_cc7_asm_atomic_op.inc_predicate',
@@ -22,11 +21,11 @@ def normalize_include_target(target):
     ]:
         return target
 
-    # If the include uses a relative path, collapse it to basename.
-    # Example: ../../TOOLS/dynpde.hpp -> dynpde.hpp
-    if '/' in target or '\\' in target:
-        return os.path.basename(target)
+    # Only rewrite truly relative includes
+    if target.startswith('../') or target.startswith('./'):
+        return os.path.basename(os.path.normpath(target))
 
+    # Preserve logical include paths like desul/atomics/Atomic_Ref.hpp
     return target
 
 def get_angular_include(line, remove_subfolder=False):
