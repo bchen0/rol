@@ -106,6 +106,20 @@ jobs:
           echo "=== $h ==="
           find ../trilinos ../trilinos-build -name "$h" -print || true
         done
+        
+    - name : Locate tpetra
+      if: always()
+      run: |
+        echo "=== Locate ROL_TpetraMultiVector.hpp ==="
+        find ../trilinos -name "ROL_TpetraMultiVector.hpp" -print || true
+
+        echo "=== Show parent of found header ==="
+        for f in $(find ../trilinos -name "ROL_TpetraMultiVector.hpp" -print); do
+          dirname "$f"
+        done
+
+      echo "=== Was it copied? ==="
+      find ../trilinos-build/packages/rol/pyrol/include_tmp -name "ROL_TpetraMultiVector.hpp" -print || true
 
     - name: Debug after configure
       if: always()
