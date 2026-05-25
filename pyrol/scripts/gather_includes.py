@@ -13,22 +13,45 @@ def get_without_subfolder(line):
         return line
     return line[:first_index+1]+line[last_index+1:]
 
+def normalize_include_target(target):
+    # Leave some known problematic generated CUDA includes alone
+    if target in [
+        'storage_class.h',
+        'cuda_cc7_asm_atomic_op.inc_predicate',
+        'cuda_cc7_asm_atomic_fetch_op.inc_predicate'
+    ]:
+        return target
+
+    # If the include uses a relative path, collapse it to basename.
+    # Example: ../../TOOLS/dynpde.hpp -> dynpde.hpp
+    if '/' in target or '\\' in target:
+        return os.path.basename(target)
+
+    return target
+
 def get_angular_include(line, remove_subfolder=False):
-    first=True
-    i0 = 0
-    i1 = 0
-    newline = line
-    for i in range(len(newline)):
-        if newline[i] == '"':
-            if first:
-                newline = newline[:i] + '<' + newline[i+1:]
-                first = False
-                i0 = i+1
-            else:
-                newline = newline[:i] + '>' + newline[i+1:]
-                i1 = i
-    if newline[i0:i1] in ['storage_class.h', 'cuda_cc7_asm_atomic_op.inc_predicate', 'cuda_cc7_asm_atomic_fetch_op.inc_predicate']:
+    stripped = line.strip()
+
+    if not stripped.startswith('#include'):
         return line
+
+    # Already angle-bracket include
+    if '<' in stripped and '>' in stripped:
+        if remove_subfolder:
+            return get_without_subfolder(line)
+        return line
+
+    first_quote = line.find('"')
+    second_quote = line.find('"', first_quote + 1)
+
+    if first_quote == -1 or second_quote == -1:
+        return line
+
+    target = line[first_quote + 1:second_quote]
+    target = normalize_include_target(target)
+
+    newline = line[:first_quote] + '<' + target + '>' + line[second_quote + 1:]
+
     if remove_subfolder:
         return get_without_subfolder(newline)
     return newline
