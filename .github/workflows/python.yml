@@ -71,7 +71,7 @@ jobs:
               -D ROL_ENABLE_EXAMPLES:BOOL=ON \
               -D ROL_ENABLE_PYROL:BOOL=ON \
               -D ROL_ENABLE_TESTS:BOOL=ON \
-              -D PyROL_BINDER_clang_include_dirs:STRING="/home/runner/work/rol/trilinos/packages/intrepid/src;/home/runner/work/rol/trilinos/packages/intrepid/src/Shared;/home/runner/work/rol/trilinos-build/packages/intrepid/src;/usr/lib/llvm-15/include" \
+              -D PyROL_BINDER_clang_include_dirs:STRING="/home/runner/work/rol/trilinos/packages/intrepid/src;/home/runner/work/rol/trilinos/packages/intrepid/src/Shared;/home/runner/work/rol/trilinos/packages/intrepid/src/Discretization/Basis;/home/runner/work/rol/trilinos-build/packages/intrepid/src;/usr/lib/llvm-15/include" \
               -D CMAKE_CXX_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared -I/home/runner/work/rol/trilinos-build/packages/intrepid/src" \
               -D CMAKE_C_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared -I/home/runner/work/rol/trilinos-build/packages/intrepid/src" \
               -D PyROL_BINDER_GCC_TOOLCHAIN:PATH="${GCC_PREFIX}" \
@@ -97,20 +97,12 @@ jobs:
               -D CMAKE_MESSAGE_LOG_LEVEL:STRING=VERBOSE \
               -D PYROL_BINDER_VERBOSE:BOOL=ON \
               ../trilinos
-              
-    - name: Locate Intrepid_Basis.hpp and compare dynpde headers
+
+    - name: Locate Intrepid_FieldContainer.hpp
       if: always()
       run: |
-        set -euxo pipefail
+        find ../trilinos ../trilinos-build -name "Intrepid_FieldContainer.hpp" -print || true
 
-        echo "=== Locate Intrepid_Basis.hpp ==="
-        find ../trilinos ../trilinos-build -name "Intrepid_Basis.hpp" -print || true
-
-        echo "=== Original dynpde.hpp ==="
-        find ../trilinos -path "*PDE-OPT/TOOLS/dynpde.hpp" -print -exec sed -n '1,40p' {} \; || true
-
-        echo "=== Generated dynpde.hpp ==="
-        sed -n '1,40p' ../trilinos-build/packages/rol/pyrol/include_tmp/dynpde.hpp || true
     - name: Debug after configure
       if: always()
       run: |
