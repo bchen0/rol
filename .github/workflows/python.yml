@@ -106,7 +106,7 @@ jobs:
           echo "=== $h ==="
           find ../trilinos ../trilinos-build -name "$h" -print || true
         done
-        
+
     - name : Locate tpetra
       if: always()
       run: |
@@ -118,8 +118,8 @@ jobs:
           dirname "$f"
         done
 
-      echo "=== Was it copied? ==="
-      find ../trilinos-build/packages/rol/pyrol/include_tmp -name "ROL_TpetraMultiVector.hpp" -print || true
+        echo "=== Was it copied? ==="
+        find ../trilinos-build/packages/rol/pyrol/include_tmp -name "ROL_TpetraMultiVector.hpp" -print || true
 
     - name: Debug after configure
       if: always()
