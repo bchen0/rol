@@ -7,14 +7,9 @@ def normalize_relative_include_target(target):
     """
     Rewrite only truly relative includes.
 
-    Examples:
-      ../../TOOLS/dynpde.hpp -> dynpde.hpp
-      ../foo/bar.hpp         -> bar.hpp
-      ./baz.hpp              -> baz.hpp
-
-    This is intentionally conservative: it only applies to includes
-    starting with ./ or ../. Logical include paths such as
-    desul/atomics/Atomic_Ref.hpp are preserved.
+    Preserve subdirectory structure when possible instead of flattening
+    everything to a basename, because some header trees (e.g. mdspan)
+    rely on relative includes among sibling headers.
     """
     if target in [
         'storage_class.h',
@@ -24,43 +19,38 @@ def normalize_relative_include_target(target):
         return target
 
     norm = os.path.normpath(target)
-    return os.path.basename(norm)
+    while norm.startswith('../'):
+        norm = norm[3:]
+    if norm.startswith('./'):
+        norm = norm[2:]
+    return norm
 
 
 def rewrite_include_line(line):
-    """
-    Rewrite include lines conservatively:
-
-    - Leave angle-bracket includes unchanged.
-    - Leave normal quoted includes unchanged.
-    - Only rewrite quoted includes that start with ./ or ../
-      into angle-bracket includes with a normalized target.
-    """
     stripped = line.lstrip()
     if not stripped.startswith('#include'):
         return line
 
-    # If this line already uses angle brackets, leave it alone.
     if '<' in stripped and '>' in stripped:
         return line
 
     first_quote = line.find('"')
     second_quote = line.find('"', first_quote + 1)
 
-    # If it's not a quoted include, leave it alone.
     if first_quote == -1 or second_quote == -1:
         return line
 
     target = line[first_quote + 1:second_quote]
 
-    # Only rewrite truly relative includes.
-    if target.startswith('../') or target.startswith('./'):
+    # Preserve same-directory includes exactly as written.
+    if target.startswith('./'):
+        return line
+
+    # Only rewrite parent-relative includes.
+    if target.startswith('../'):
         new_target = normalize_relative_include_target(target)
         return line[:first_quote] + '<' + new_target + '>' + line[second_quote + 1:]
 
-    # Preserve ordinary quoted includes, including sibling/local includes
-    # like "default_accessor.hpp" and rooted logical includes like
-    # "desul/atomics/Atomic_Ref.hpp".
     return line
 
 
