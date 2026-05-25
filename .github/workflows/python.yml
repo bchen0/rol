@@ -98,6 +98,19 @@ jobs:
               -D PYROL_BINDER_VERBOSE:BOOL=ON \
               ../trilinos
               
+    - name: Locate Intrepid_Basis.hpp and compare dynpde headers
+      if: always()
+      run: |
+        set -euxo pipefail
+
+        echo "=== Locate Intrepid_Basis.hpp ==="
+        find ../trilinos ../trilinos-build -name "Intrepid_Basis.hpp" -print || true
+
+        echo "=== Original dynpde.hpp ==="
+        find ../trilinos -path "*PDE-OPT/TOOLS/dynpde.hpp" -print -exec sed -n '1,40p' {} \; || true
+
+        echo "=== Generated dynpde.hpp ==="
+        sed -n '1,40p' ../trilinos-build/packages/rol/pyrol/include_tmp/dynpde.hpp || true
     - name: Debug after configure
       if: always()
       run: |
