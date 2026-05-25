@@ -298,6 +298,20 @@ IF (PYROL_GENERATE_SRC)
   list(APPEND BINDER_OPTIONS -I${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/dynamic/navier-stokes)
   list(APPEND BINDER_OPTIONS -I${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/TOOLS)
 
+  set(_pyrol_intrepid_include_dirs
+    "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Shared"
+    "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Discretization/Basis"
+    "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Discretization/Integration"
+    "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Cell"
+    "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Discretization/FunctionSpaceTools"
+  )
+  
+  foreach(_inc IN LISTS _pyrol_intrepid_include_dirs)
+    if(EXISTS "${_inc}")
+      list(APPEND BINDER_OPTIONS -I${_inc})
+    endif()
+  endforeach()
+
   foreach(_inc ${PyROL_BINDER_clang_include_dirs})
     list(APPEND BINDER_OPTIONS -I${_inc})
   endforeach()
