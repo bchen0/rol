@@ -4,13 +4,6 @@ import sys
 
 
 def normalize_relative_include_target(target):
-    """
-    Rewrite only truly relative includes.
-
-    Preserve subdirectory structure when possible instead of flattening
-    everything to a basename, because some header trees (e.g. mdspan)
-    rely on relative includes among sibling headers.
-    """
     if target in [
         'storage_class.h',
         'cuda_cc7_asm_atomic_op.inc_predicate',
@@ -19,10 +12,12 @@ def normalize_relative_include_target(target):
         return target
 
     norm = os.path.normpath(target)
+
     while norm.startswith('../'):
         norm = norm[3:]
     if norm.startswith('./'):
         norm = norm[2:]
+
     return norm
 
 
@@ -42,11 +37,11 @@ def rewrite_include_line(line):
 
     target = line[first_quote + 1:second_quote]
 
-    # Preserve same-directory includes exactly as written.
+    # Preserve local/same-directory includes
     if target.startswith('./'):
         return line
 
-    # Only rewrite parent-relative includes.
+    # Rewrite only parent-relative includes
     if target.startswith('../'):
         new_target = normalize_relative_include_target(target)
         return line[:first_quote] + '<' + new_target + '>' + line[second_quote + 1:]
