@@ -56,6 +56,10 @@ jobs:
       run: |
         set -euxo pipefail
         nl -ba ../trilinos/packages/rol/pyrol/CMakeLists.txt | sed -n '290,310p'
+    - name: Locate Intrepid_config.h
+      run: |
+        find ../trilinos-build -name "Intrepid_config.h" -print || true
+        find ../trilinos -name "Intrepid_config.h" -print || true
     - name: Configure (requires running Binder)
       id: configure_trilinos
       continue-on-error: true
@@ -67,9 +71,9 @@ jobs:
               -D ROL_ENABLE_EXAMPLES:BOOL=ON \
               -D ROL_ENABLE_PYROL:BOOL=ON \
               -D ROL_ENABLE_TESTS:BOOL=ON \
-              -D PyROL_BINDER_clang_include_dirs:STRING="/home/runner/work/rol/trilinos/packages/intrepid/src;/home/runner/work/rol/trilinos/packages/intrepid/src/Shared;/usr/lib/llvm-15/include" \
-              -D CMAKE_CXX_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared" \
-              -D CMAKE_C_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared" \
+              -D PyROL_BINDER_clang_include_dirs:STRING="/home/runner/work/rol/trilinos/packages/intrepid/src;/home/runner/work/rol/trilinos/packages/intrepid/src/Shared;/home/runner/work/rol/trilinos-build/packages/intrepid/src;/usr/lib/llvm-15/include" \
+              -D CMAKE_CXX_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared -I/home/runner/work/rol/trilinos-build/packages/intrepid/src" \
+              -D CMAKE_C_FLAGS:STRING="-I/home/runner/work/rol/trilinos/packages/intrepid/src -I/home/runner/work/rol/trilinos/packages/intrepid/src/Shared -I/home/runner/work/rol/trilinos-build/packages/intrepid/src" \              
               -D PyROL_BINDER_GCC_TOOLCHAIN:PATH="${GCC_PREFIX}" \
               -D PyROL_BINDER_LibClang_include_dir:PATH="${LLVM_PREFIX}/lib/clang/${LLVM_VERSION}/include" \
               -D PYROL_ENABLE_BINDER:BOOL=ON \

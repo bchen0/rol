@@ -45,7 +45,7 @@ TRIBITS_ADD_OPTION_AND_DEFINE(PYROL_ENABLE_BINDER_UPDATE
   OFF )
 
 MESSAGE("-- Python3_EXECUTABLE:")
-IF(NOT DEFINED ${Python3_EXECUTABLE})
+IF(NOT DEFINED Python3_EXECUTABLE)
   find_program(Python3_EXECUTABLE
       NAMES python3 python
       )
@@ -170,7 +170,7 @@ list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed/utilitie
 list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed/vector")
 
 # Try to include PDE-OPT/dynamic/navier-stokes examples
-list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/dynamic/navvier-stokes")
+list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/dynamic/navier-stokes")
 list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/TOOLS")
 
 IF (PYROL_GENERATE_SRC)
@@ -299,6 +299,10 @@ IF (PYROL_GENERATE_SRC)
   foreach(_inc ${PyROL_BINDER_clang_include_dirs})
     list(APPEND BINDER_OPTIONS -I${_inc})
   endforeach()
+
+  if(EXISTS "${CMAKE_BINARY_DIR}/packages/intrepid/src")
+    list(APPEND BINDER_OPTIONS -I${CMAKE_BINARY_DIR}/packages/intrepid/src)
+  endif()
 
   list(APPEND BINDER_OPTIONS -iwithsysroot${PyROL_BINDER_LibClang_include_dir})
   IF(PyROL_BINDER_GCC_TOOLCHAIN)
