@@ -298,6 +298,14 @@ IF (PYROL_GENERATE_SRC)
   list(APPEND BINDER_OPTIONS -I${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/dynamic/navier-stokes)
   list(APPEND BINDER_OPTIONS -I${${PACKAGE_NAME}_SOURCE_DIR}/example/PDE-OPT/TOOLS)
 
+  if(EXISTS "${${PACKAGE_NAME}_SOURCE_DIR}/src/compatibility/simple/mpi")
+    list(APPEND BINDER_OPTIONS -I${${PACKAGE_NAME}_SOURCE_DIR}/src/compatibility/simple/mpi)
+  endif()
+
+  if(EXISTS "${${PACKAGE_NAME}_SOURCE_DIR}/src/compatibility/teuchos/mpi")
+    list(APPEND BINDER_OPTIONS -I${${PACKAGE_NAME}_SOURCE_DIR}/src/compatibility/teuchos/mpi)
+  endif()
+
   set(_pyrol_intrepid_include_dirs
     "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Shared"
     "${CMAKE_SOURCE_DIR}/packages/intrepid/src/Discretization/Basis"
