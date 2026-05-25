@@ -218,17 +218,11 @@ IF (PYROL_GENERATE_SRC)
   set(PyROL_all_include_files_with_dir "")
   set(PyROL_all_include_files_without_dir "")
   foreach(include_dir IN LISTS all_include_dirs)
-    file(GLOB include_files
-        "${include_dir}/*.hpp"
-        "${include_dir}/*.h"
-        "${include_dir}/*/*.hpp"
-        "${include_dir}/*/*.h"
-        "${include_dir}/*/*/*.hpp"
-        "${include_dir}/*/*/*.h"
-        "${include_dir}/*/*/*/*.hpp"
-        "${include_dir}/*/*/*/*.h"
-        "${include_dir}/*/*/*/*.inc"
-        "${include_dir}/*/*/*/*.inc_predicate"
+    file(GLOB_RECURSE include_files
+      "${include_dir}/*.hpp"
+      "${include_dir}/*.h"
+      "${include_dir}/*.inc"
+      "${include_dir}/*.inc_predicate"
     )
     foreach(include_file IN LISTS include_files)
       list(APPEND PyROL_all_include_files_with_dir "${include_file}")
