@@ -86,7 +86,7 @@ jobs:
         path: /home/runner/work/rol/pyrol/dist/*.tar.gz
 
   build-wheels:
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: true
     needs: build-sdist
     strategy:
       matrix:
