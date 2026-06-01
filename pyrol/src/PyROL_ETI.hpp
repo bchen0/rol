@@ -108,9 +108,8 @@ namespace details {
 // namespace OED {
 //   BINDER_ROL_OED(double)
 // }
+}
 
 BINDER_ROL_PDEOPT_TOOLS(double)
-
-}
 
 #endif // PYROL_ETI
