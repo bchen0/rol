@@ -7,9 +7,8 @@
 // *****************************************************************************
 // @HEADER
 
+#ifndef PYROL_BINDER_PARSING
 #include <PyROL_stream.hpp>
-
-// #ifndef PYROL_BINDER_PARSING
-// #include <PyROL_Teuchos_ETI.hpp>
-// #include "PyROL_ETI.hpp"
-// #endif
+#include <PyROL_Teuchos_ETI.hpp>
+#include "PyROL_ETI.hpp"
+#endif
