@@ -11,4 +11,8 @@
 #include <PyROL_stream.hpp>
 #include <PyROL_Teuchos_ETI.hpp>
 #include "PyROL_ETI.hpp"
+
+#include <ROL_ScalarTraits.hpp>
+#include <ROL_TimeStamp.hpp>
+#include <ROL_Elementwise_Function.hpp>
 // #endif

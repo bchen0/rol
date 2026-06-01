@@ -35,7 +35,14 @@ ENDIF()
 MESSAGE("PYROL_SRC with Binder = ${PYROL_SRC}")
 
 pybind11_add_module(pyrol ${PYROL_SRC})
-target_include_directories(pyrol PUBLIC ${Mpi4Py_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../binder "$<BUILD_INTERFACE:${ROL_all_include_dirs}>")
+# target_include_directories(pyrol PUBLIC ${Mpi4Py_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}/../binder "$<BUILD_INTERFACE:${ROL_all_include_dirs}>")
+target_include_directories(pyrol PUBLIC
+  ${Mpi4Py_INCLUDE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}/../binder
+  "$<BUILD_INTERFACE:${ROL_all_include_dirs}>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/packages/shards/src>"
+)
 target_compile_features(pyrol PUBLIC cxx_std_14)
 
 foreach(depPkg IN LISTS ROL_LIB_ENABLED_DEPENDENCIES)
