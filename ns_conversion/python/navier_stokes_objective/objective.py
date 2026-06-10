@@ -53,6 +53,7 @@ class NavierStokesReducedObjective:
         pin_pressure: bool = False,
         linear_solver: Any = "scipy",
         klu2_executable: str | Path | None = None,
+        initial_condition_path: str | Path | None = None,
     ) -> None:
         if not config.use_parametric_control:
             raise NotImplementedError("Only the default scalar parametric-control branch is implemented")
@@ -86,6 +87,8 @@ class NavierStokesReducedObjective:
             self._build_fe_backend(fe_cell_ids, degree)
         else:
             raise ValueError(f"Unknown backend {backend!r}; expected 'graph' or 'fe'")
+        if initial_condition_path is not None:
+            self.load_initial_condition(initial_condition_path)
 
     @classmethod
     def from_xml(
@@ -100,9 +103,9 @@ class NavierStokesReducedObjective:
         Extra keyword arguments ``time_steps``, ``end_time``, and ``theta`` are
         accepted for small derivative checks without editing the XML.  Pass
         ``backend="fe"`` and, optionally, ``fe_cell_ids`` to use the
-        Taylor-Hood finite-element backend.  The ``initial_condition_path``
-        argument is accepted for API parity; both backends currently use the
-        same potential-flow fallback as their initial state.
+        Taylor-Hood finite-element backend.  Pass ``initial_condition_path`` to
+        load a ROL/Tpetra MatrixMarket state file such as
+        ``initial_condition_Re200.txt`` instead of the potential-flow fallback.
         """
         config_keys = {"time_steps", "end_time", "theta"}
         config_kwargs = {k: kwargs.pop(k) for k in list(kwargs) if k in config_keys}
@@ -129,6 +132,11 @@ class NavierStokesReducedObjective:
         if not mesh_file.is_absolute():
             mesh_file = config.xml_path.parent / mesh_file
         mesh = read_channel_mesh(mesh_file)
+        if initial_condition_path is not None:
+            ic_path = Path(initial_condition_path).expanduser()
+            if not ic_path.is_absolute():
+                ic_path = config.xml_path.parent / ic_path
+            init_kwargs["initial_condition_path"] = ic_path
         return cls(config, mesh, **init_kwargs)
 
     def value(self, z: Any) -> float:
@@ -221,6 +229,20 @@ class NavierStokesReducedObjective:
         self._state_cache = _StateCache(key=key, states=states.copy())
         return states
 
+    def load_initial_condition(self, path: str | Path) -> np.ndarray:
+        """Load a ROL/Tpetra state vector file and use it as ``u0``.
+
+        The stock ROL example writes ``initial_condition_Re*.txt`` with
+        ``dyn_con->outputTpetraVector``.  Those files use ROL's global DOF
+        ordering, so the values are remapped into Python's state ordering here.
+        """
+        if self.backend != "fe":
+            raise NotImplementedError("ROL initial condition files are supported for the FE backend only")
+        state = self._read_rol_initial_condition(path)
+        self._initial_state = state
+        self._state_cache = None
+        return state.copy()
+
     def initial_control(self) -> np.ndarray:
         """Return the scalar-control initial guess used by the ROL example."""
         guess = self.config.raw.get("Problem", {}).get("Initial Guess", {})
@@ -265,6 +287,71 @@ class NavierStokesReducedObjective:
         self.fe_objective = NavierStokesFEObjective(self.fe_assembler, self.config)
         self.state_size = self.fe_assembler.state_size
         self._initial_state = self.fe_constraint.potential_flow_state()
+
+    def _read_rol_initial_condition(self, path: str | Path) -> np.ndarray:
+        values = _read_matrix_market_dense_vector(path)
+        data_path = Path(path).expanduser()
+        map_path = data_path.with_name(f"map_{data_path.name}")
+        gids = _read_tpetra_map_gids(map_path) if map_path.exists() else np.arange(values.size, dtype=np.int64)
+        if values.size != gids.size:
+            raise ValueError(f"Initial condition has {values.size} values but map {map_path} has {gids.size} GIDs")
+        if values.size != self.state_size:
+            raise ValueError(f"Initial condition has {values.size} values; expected FE state size {self.state_size}")
+        indices = self._rol_state_gids_to_python_indices(gids)
+        state = np.empty(self.state_size)
+        state[indices] = values
+        return state
+
+    def _rol_state_gids_to_python_indices(self, gids: np.ndarray) -> np.ndarray:
+        gids_arr = np.asarray(gids, dtype=np.int64)
+        if gids_arr.shape != (self.state_size,):
+            raise ValueError(f"Expected {self.state_size} ROL state GIDs, got shape {gids_arr.shape}")
+        if np.unique(gids_arr).size != gids_arr.size:
+            raise ValueError("ROL state GIDs contain duplicates")
+
+        mesh = self.fe_space.mesh
+        num_nodes = mesh.num_nodes
+        num_edges = len(self.fe_space.edge_to_id)
+        num_cells = mesh.num_cells
+        v = self.fe_constraint.num_velocity_dofs
+
+        out = np.empty_like(gids_arr)
+        node_limit = 3 * num_nodes
+        edge_limit = node_limit + 2 * num_edges
+        cell_limit = edge_limit + 2 * num_cells
+        if np.any((gids_arr < 0) | (gids_arr >= cell_limit)):
+            raise ValueError("Initial condition contains ROL state GIDs outside the expected range")
+
+        node_mask = gids_arr < node_limit
+        node_gid = gids_arr[node_mask]
+        node_id = node_gid // 3
+        node_field = node_gid % 3
+        node_out = np.empty_like(node_gid)
+        node_out[node_field == 0] = node_id[node_field == 0]
+        node_out[node_field == 1] = v + node_id[node_field == 1]
+        node_out[node_field == 2] = 2 * v + node_id[node_field == 2]
+        out[node_mask] = node_out
+
+        edge_mask = (gids_arr >= node_limit) & (gids_arr < edge_limit)
+        edge_gid = gids_arr[edge_mask] - node_limit
+        edge_id = edge_gid // 2
+        edge_field = edge_gid % 2
+        edge_dof = num_nodes + edge_id
+        edge_out = np.empty_like(edge_gid)
+        edge_out[edge_field == 0] = edge_dof[edge_field == 0]
+        edge_out[edge_field == 1] = v + edge_dof[edge_field == 1]
+        out[edge_mask] = edge_out
+
+        cell_mask = gids_arr >= edge_limit
+        cell_gid = gids_arr[cell_mask] - edge_limit
+        cell_id = cell_gid // 2
+        cell_field = cell_gid % 2
+        cell_dof = num_nodes + num_edges + cell_id
+        cell_out = np.empty_like(cell_gid)
+        cell_out[cell_field == 0] = cell_dof[cell_field == 0]
+        cell_out[cell_field == 1] = v + cell_dof[cell_field == 1]
+        out[cell_mask] = cell_out
+        return out
 
     def _value_fe(self, controls: np.ndarray) -> float:
         states = self.solve_state(controls)
@@ -485,3 +572,53 @@ class NavierStokesReducedObjective:
 
     def _compose_state(self, ux: np.ndarray, uy: np.ndarray) -> np.ndarray:
         return np.concatenate([np.asarray(ux, dtype=float), np.asarray(uy, dtype=float)])
+
+
+def _read_matrix_market_dense_vector(path: str | Path) -> np.ndarray:
+    matrix = _read_matrix_market_array(path, dtype=float)
+    if matrix.shape[1] != 1:
+        raise ValueError(f"Expected a MatrixMarket dense vector with one column, got shape {matrix.shape}")
+    return matrix[:, 0]
+
+
+def _read_tpetra_map_gids(path: str | Path) -> np.ndarray:
+    matrix = _read_matrix_market_array(path, dtype=np.int64)
+    values = matrix[:, 0]
+    if values.size % 2 != 0:
+        raise ValueError(f"Tpetra map file {Path(path)} has an odd number of entries")
+    return values[0::2].astype(np.int64, copy=False)
+
+
+def _read_matrix_market_array(path: str | Path, *, dtype: type) -> np.ndarray:
+    file_path = Path(path).expanduser()
+    lines = file_path.read_text(encoding="utf-8").splitlines()
+    banner: str | None = None
+    body: list[str] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        if banner is None:
+            banner = line
+            continue
+        if line.startswith("%"):
+            continue
+        body.append(line)
+    if banner is None:
+        raise ValueError(f"MatrixMarket file {file_path} is empty")
+    tokens = banner.lower().split()
+    if len(tokens) < 5 or tokens[:3] != ["%%matrixmarket", "matrix", "array"]:
+        raise ValueError(f"Expected MatrixMarket array file in {file_path}, got banner {banner!r}")
+    if not body:
+        raise ValueError(f"MatrixMarket file {file_path} is missing its dimensions line")
+    dims = body[0].split()
+    if len(dims) != 2:
+        raise ValueError(f"Expected two MatrixMarket dimensions in {file_path}, got {body[0]!r}")
+    rows, cols = (int(dims[0]), int(dims[1]))
+    values: list[Any] = []
+    for line in body[1:]:
+        values.extend(dtype(item) for item in line.split())
+    expected = rows * cols
+    if len(values) != expected:
+        raise ValueError(f"MatrixMarket file {file_path} has {len(values)} values; expected {expected}")
+    return np.asarray(values, dtype=dtype).reshape((cols, rows)).T
