@@ -222,15 +222,18 @@ class NavierStokesReducedObjective:
         return states
 
     def initial_control(self) -> np.ndarray:
-        """Return the sinusoidal scalar-control initial guess from the XML."""
+        """Return the scalar-control initial guess used by the ROL example."""
         guess = self.config.raw.get("Problem", {}).get("Initial Guess", {})
-        amp = float(guess.get("Amplitude", 6.0))
-        st = float(guess.get("Strouhal Number", 0.74))
+        reynolds = self.config.reynolds_number
+        default_amp = 6.0 - (reynolds - 200.0) / 1600.0
+        default_strouhal = 0.74 - (reynolds - 200.0) * (0.115 / 800.0)
+        amp = float(guess.get("Amplitude", default_amp))
+        st = float(guess.get("Strouhal Number", default_strouhal))
         phase = float(guess.get("Phase Shift", 0.0))
         z = np.zeros(self.config.nt)
-        for k in range(1, self.config.nt):
-            t_mid = (k + 0.5) * self.config.dt
-            z[k] = amp * np.sin(2.0 * np.pi * st * t_mid + phase)
+        for k in range(self.config.nt):
+            t_left = k * self.config.dt
+            z[k] = -amp * np.sin(2.0 * np.pi * st * t_left + phase)
         return z
 
     def _as_control(self, z: Any) -> np.ndarray:
