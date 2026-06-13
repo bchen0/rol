@@ -58,6 +58,9 @@ class NavierStokesConfig:
     state_cost: float
     state_boundary_cost: float
     control_cost: float
+    l1_control_cost: float
+    lower_control_bound: float
+    upper_control_bound: float
     final_time_state_cost: float
     raw: dict[str, Any]
 
@@ -91,6 +94,8 @@ def read_config(
     int_type = problem.get("Integrated Objective Type", problem.get("Integrated Objective type", "Dissipation"))
     ft_type = problem.get("Final Time Objective Type", problem.get("Final Time Objective type", "Tracking"))
 
+    control_cost = problem.get("Control Cost", problem.get("L2 Control Cost", 0.0))
+
     return NavierStokesConfig(
         xml_path=path,
         mesh_file=str(_get(raw, ("Mesh", "File Name"), "channel.txt")),
@@ -110,7 +115,10 @@ def read_config(
         final_time_objective_type=str(ft_type),
         state_cost=float(problem.get("State Cost", 1.0)),
         state_boundary_cost=float(problem.get("State Boundary Cost", 1.0)),
-        control_cost=float(problem.get("Control Cost", 0.0)),
+        control_cost=float(control_cost),
+        l1_control_cost=float(problem.get("L1 Control Cost", 1e-2)),
+        lower_control_bound=float(problem.get("Lower Control Bound", -1.0)),
+        upper_control_bound=float(problem.get("Upper Control Bound", 1.0)),
         final_time_state_cost=float(problem.get("Final Time State Cost", 1.0)),
         raw=raw,
     )

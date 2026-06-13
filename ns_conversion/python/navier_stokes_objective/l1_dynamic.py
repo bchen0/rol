@@ -83,9 +83,9 @@ class L1DynamicObjective:
         return cls.from_config(
             config,
             theta=l1_theta,
-            beta=config.l1_control_cost if l1_control_cost is None else float(l1_control_cost),
-            lower_bound=config.lower_control_bound if lower_bound is None else lower_bound,
-            upper_bound=config.upper_control_bound if upper_bound is None else upper_bound,
+            beta=_l1_control_cost(config) if l1_control_cost is None else float(l1_control_cost),
+            lower_bound=_lower_control_bound(config) if lower_bound is None else lower_bound,
+            upper_bound=_upper_control_bound(config) if upper_bound is None else upper_bound,
             control_dimension=control_dimension,
         )
 
@@ -104,9 +104,9 @@ class L1DynamicObjective:
             config.nt,
             config.end_time,
             theta=_reduced_dynamic_theta(config) if theta is None else float(theta),
-            beta=config.l1_control_cost if beta is None else float(beta),
-            lower_bound=config.lower_control_bound if lower_bound is None else lower_bound,
-            upper_bound=config.upper_control_bound if upper_bound is None else upper_bound,
+            beta=_l1_control_cost(config) if beta is None else float(beta),
+            lower_bound=_lower_control_bound(config) if lower_bound is None else lower_bound,
+            upper_bound=_upper_control_bound(config) if upper_bound is None else upper_bound,
             control_dimension=control_dimension,
         )
 
@@ -201,3 +201,25 @@ def _reduced_dynamic_theta(config: NavierStokesConfig) -> float:
     if not isinstance(time_discretization, dict):
         return 1.0
     return float(time_discretization.get("Theta", 1.0))
+
+
+def _l1_control_cost(config: NavierStokesConfig) -> float:
+    return float(getattr(config, "l1_control_cost", _problem_value(config, "L1 Control Cost", 1e-2)))
+
+
+def _lower_control_bound(config: NavierStokesConfig) -> float:
+    return float(getattr(config, "lower_control_bound", _problem_value(config, "Lower Control Bound", -1.0)))
+
+
+def _upper_control_bound(config: NavierStokesConfig) -> float:
+    return float(getattr(config, "upper_control_bound", _problem_value(config, "Upper Control Bound", 1.0)))
+
+
+def _problem_value(config: NavierStokesConfig, name: str, default: float) -> float:
+    raw = getattr(config, "raw", {})
+    if not isinstance(raw, dict):
+        return default
+    problem = raw.get("Problem", {})
+    if not isinstance(problem, dict):
+        return default
+    return float(problem.get(name, default))

@@ -19,10 +19,12 @@ from .fem_assembler import TaylorHoodAssembler
 from .fem_dynamic import DynamicNavierStokesFEConstraint
 from .fem_pde import NavierStokesLocalResidual
 from .fem_qoi import NavierStokesFEObjective
+from .l1_dynamic import L1DynamicObjective
 from .linear_solvers import KLU2SparseLinearSolver, ScipySparseLinearSolver
 
 __all__ = [
     "NavierStokesReducedObjective",
+    "L1DynamicObjective",
     "TaylorHoodSpace",
     "TaylorHoodAssembler",
     "DynamicNavierStokesFEConstraint",
