@@ -116,25 +116,13 @@ class L1DynamicObjective:
             return (self.nt,)
         return (self.nt, self.control_dimension)
 
-    @property
-    def weights(self) -> np.ndarray:
-        """Return the beta-scaled L1 coefficient for each time partition."""
-
-        widths = self.time_step_widths
-        coeff = np.zeros(self.nt, dtype=float)
-        coeff[0] = widths[1] * (1.0 - self.theta)
-        if self.nt > 2:
-            coeff[1:-1] = self.theta * widths[1:-1] + (1.0 - self.theta) * widths[2:]
-        coeff[-1] = self.theta * widths[-1]
-        return self.beta * coeff
-
     def value(self, z: Any) -> float:
         controls, _ = self._as_control(z)
         lower = self._broadcast_bound(self.lower_bound, "lower_bound")
         upper = self._broadcast_bound(self.upper_bound, "upper_bound")
         if np.any(controls < lower) or np.any(controls > upper):
             return float("inf")
-        return float(np.sum(self.weights[:, None] * np.abs(controls)))
+        return float(np.sum(self._l1_weights()[:, None] * np.abs(controls)))
 
     def prox(self, z: Any, step: float) -> np.ndarray:
         """Return ``prox_{step * nobj}(z)``.
@@ -148,28 +136,13 @@ class L1DynamicObjective:
         if step < 0.0:
             raise ValueError("step must be nonnegative")
         controls, squeezed = self._as_control(z)
-        threshold = step * self.weights[:, None]
+        threshold = step * self._l1_weights()[:, None]
         prox = np.sign(controls) * np.maximum(np.abs(controls) - threshold, 0.0)
         prox = np.minimum(
             self._broadcast_bound(self.upper_bound, "upper_bound"),
             np.maximum(self._broadcast_bound(self.lower_bound, "lower_bound"), prox),
         )
         return prox[:, 0] if squeezed else prox
-
-    def subgradient(self, z: Any, *, zero_subgradient: float = 0.0) -> np.ndarray:
-        """Return one L1 subgradient, ignoring bound normal-cone terms."""
-
-        controls, squeezed = self._as_control(z)
-        signs = np.sign(controls)
-        signs[controls == 0.0] = float(zero_subgradient)
-        grad = self.weights[:, None] * signs
-        return grad[:, 0] if squeezed else grad
-
-    def is_feasible(self, z: Any) -> bool:
-        controls, _ = self._as_control(z)
-        lower = self._broadcast_bound(self.lower_bound, "lower_bound")
-        upper = self._broadcast_bound(self.upper_bound, "upper_bound")
-        return bool(np.all((controls >= lower) & (controls <= upper)))
 
     def _as_control(self, z: Any) -> tuple[np.ndarray, bool]:
         arr = np.asarray(z, dtype=float)
@@ -191,6 +164,15 @@ class L1DynamicObjective:
         if bound.shape == target:
             return bound
         raise ValueError(f"Cannot broadcast {name} shape {bound.shape} to {target}")
+
+    def _l1_weights(self) -> np.ndarray:
+        widths = self.time_step_widths
+        coeff = np.zeros(self.nt, dtype=float)
+        coeff[0] = widths[1] * (1.0 - self.theta)
+        if self.nt > 2:
+            coeff[1:-1] = self.theta * widths[1:-1] + (1.0 - self.theta) * widths[2:]
+        coeff[-1] = self.theta * widths[-1]
+        return self.beta * coeff
 
 
 def _reduced_dynamic_theta(config: NavierStokesConfig) -> float:
