@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import shutil
+import signal
 import subprocess
 import tempfile
 from typing import Protocol
@@ -78,6 +80,10 @@ class KLU2SparseLinearSolver:
         mat = matrix.tocsr()
         mat.sort_indices()
         mat.sum_duplicates()
+        if not np.all(np.isfinite(mat.data)):
+            raise ValueError("matrix contains nonfinite entries")
+        if not np.all(np.isfinite(rhs_arr)):
+            raise ValueError("rhs contains nonfinite entries")
         if mat.shape[0] != mat.shape[1]:
             raise ValueError(f"matrix must be square, got shape {mat.shape}")
         if mat.shape[0] != rhs_arr.size:
@@ -95,13 +101,31 @@ class KLU2SparseLinearSolver:
             completed = subprocess.run(
                 command,
                 cwd=exe.parent,
-                check=True,
+                check=False,
                 text=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            if completed.returncode != 0:
+                problem_copy = _preserve_failed_problem(input_path)
+                raise RuntimeError(
+                    _format_failed_solve_message(
+                        command=command,
+                        returncode=completed.returncode,
+                        stdout=completed.stdout,
+                        stderr=completed.stderr,
+                        problem_copy=problem_copy,
+                    )
+                )
 
-        payload = _load_last_json_object(completed.stdout)
+        try:
+            payload = _load_last_json_object(completed.stdout)
+        except RuntimeError as err:
+            raise RuntimeError(
+                "KLU2 helper finished successfully but did not return a JSON solution.\n"
+                f"stdout:\n{_trim_output(completed.stdout)}\n"
+                f"stderr:\n{_trim_output(completed.stderr)}"
+            ) from err
         solution = np.asarray(payload["solution"], dtype=float)
         if solution.shape != rhs_arr.shape:
             raise RuntimeError(f"KLU2 helper returned solution shape {solution.shape}; expected {rhs_arr.shape}")
@@ -153,6 +177,56 @@ def _load_last_json_object(stdout: str) -> dict[str, object]:
         if text.startswith("{") and text.endswith("}"):
             return json.loads(text)
     raise RuntimeError("KLU2 helper did not print a JSON solution object")
+
+
+def _format_failed_solve_message(
+    *,
+    command: list[str],
+    returncode: int,
+    stdout: str,
+    stderr: str,
+    problem_copy: Path | None,
+) -> str:
+    if returncode < 0:
+        signum = -returncode
+        try:
+            status = f"signal {signal.Signals(signum).name} ({signum})"
+        except ValueError:
+            status = f"signal {signum}"
+    else:
+        status = f"exit code {returncode}"
+    message = [
+        f"KLU2 sparse-solve helper failed with {status}.",
+        f"command: {' '.join(command)}",
+    ]
+    if problem_copy is not None:
+        message.append(f"sparse problem copy: {problem_copy}")
+    else:
+        message.append(
+            "Set NAVIER_STOKES_KLU2_DEBUG_DIR to preserve the sparse problem file for replay."
+        )
+    message.append(f"stdout:\n{_trim_output(stdout)}")
+    message.append(f"stderr:\n{_trim_output(stderr)}")
+    return "\n".join(message)
+
+
+def _preserve_failed_problem(input_path: Path) -> Path | None:
+    debug_dir = os.environ.get("NAVIER_STOKES_KLU2_DEBUG_DIR")
+    if not debug_dir:
+        return None
+    target_dir = Path(debug_dir).expanduser()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"{input_path.parent.name}_{input_path.name}"
+    shutil.copy2(input_path, target)
+    return target
+
+
+def _trim_output(text: str, *, limit: int = 4000) -> str:
+    if not text:
+        return "<empty>"
+    if len(text) <= limit:
+        return text.rstrip()
+    return "...<truncated>...\n" + text[-limit:].rstrip()
 
 
 def _default_klu2_executable() -> Path:

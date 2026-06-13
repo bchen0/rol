@@ -68,7 +68,7 @@ class L1DynamicObjective:
         lower_bound: float | np.ndarray | None = None,
         upper_bound: float | np.ndarray | None = None,
         control_dimension: int = 1,
-    ) -> "L1DynamicObjective":
+    ) -> L1DynamicObjective:
         """Construct the nonsmooth objective from the ROL XML input.
 
         The C++ class reads ``Theta`` from
@@ -99,7 +99,7 @@ class L1DynamicObjective:
         lower_bound: float | np.ndarray | None = None,
         upper_bound: float | np.ndarray | None = None,
         control_dimension: int = 1,
-    ) -> "L1DynamicObjective":
+    ) -> L1DynamicObjective:
         return cls(
             config.nt,
             config.end_time,
