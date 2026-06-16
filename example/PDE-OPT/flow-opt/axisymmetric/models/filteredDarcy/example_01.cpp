@@ -39,8 +39,72 @@
 #include "pde_filter.hpp"
 #include "filtered_obj.hpp"
 
+#include <fstream>
+#include <iomanip>
+#include <vector>
 
 typedef double RealT;
+
+namespace {
+
+void printJsonVector(std::ostream &os, const std::vector<RealT> &x) {
+  os << "[";
+  for (std::size_t i = 0; i < x.size(); ++i) {
+    if (i) os << ",";
+    os << x[i];
+  }
+  os << "]";
+}
+
+std::vector<RealT> flattenOptVector(const ROL::Vector<RealT> &x) {
+  std::vector<RealT> out;
+
+  const PDE_OptVector<RealT> *opt =
+      dynamic_cast<const PDE_OptVector<RealT> *>(&x);
+
+  if (opt != nullptr) {
+    auto field = opt->getField();
+    if (field != ROL::nullPtr) {
+      auto data = field->getVector()->getData(0);
+      for (int i = 0; i < data.size(); ++i) out.push_back(data[i]);
+    }
+
+    auto param = opt->getParameter();
+    if (param != ROL::nullPtr) {
+      auto values = param->getVector();
+      out.insert(out.end(), values->begin(), values->end());
+    }
+    return out;
+  }
+
+  const ROL::TpetraMultiVector<RealT> *fieldOnly =
+      dynamic_cast<const ROL::TpetraMultiVector<RealT> *>(&x);
+  if (fieldOnly != nullptr) {
+    auto data = fieldOnly->getVector()->getData(0);
+    for (int i = 0; i < data.size(); ++i) out.push_back(data[i]);
+  }
+
+  return out;
+}
+
+void dumpCheckVectors(const std::string &path,
+                      const ROL::Vector<RealT> &rzp,
+                      const ROL::Vector<RealT> &dzp,
+                      const int myRank) {
+  if (myRank != 0) return;
+
+  std::ofstream out(path);
+  out << std::scientific << std::setprecision(17);
+
+  out << "{";
+  out << "\"rzp\":";
+  printJsonVector(out, flattenOptVector(rzp));
+  out << ",\"dzp\":";
+  printJsonVector(out, flattenOptVector(dzp));
+  out << "}\n";
+}
+
+}
 
 int main(int argc, char *argv[]) {
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
@@ -185,6 +249,7 @@ int main(int argc, char *argv[]) {
       //ROL::Ptr<ROL::Vector<RealT>> dup = up->clone(); dup->randomize(-1.0,1.0);
       ROL::Ptr<ROL::Vector<RealT>> rzp = zp->clone(); rzp->randomize( 0.0,1.0);
       ROL::Ptr<ROL::Vector<RealT>> dzp = zp->clone(); dzp->randomize( 0.0,1.0);
+      dumpCheckVectors("rol_check_vectors.json", *rzp, *dzp, myRank);
       //con->checkApplyJacobian_1(*rup,*rzp,*dup,*rup,true,*outStream);
       //con->checkApplyJacobian_2(*rup,*rzp,*dzp,*rup,true,*outStream);
       //con->checkInverseJacobian_1(*rup,*rup,*rup,*rzp,true,*outStream);
