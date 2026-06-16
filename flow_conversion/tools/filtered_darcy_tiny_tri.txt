@@ -1,0 +1,24 @@
+netcdf filtered_darcy_tiny_tri {
+dimensions:
+    num_dim = 2 ;
+    num_nodes = 4 ;
+    num_elem = 2 ;
+    num_side_sets = 3 ;
+variables:
+    double coordx(num_nodes) ;
+    double coordy(num_nodes) ;
+    int connect1(num_elem, num_nod_per_el1) ;
+        connect1:elem_type = "TRI" ;
+data:
+ coordx = 0.5, 1.5, 1.5, 0.5 ;
+ coordy = -1.0, -1.0, 1.0, 1.0 ;
+ connect1 =
+  1, 2, 3,
+  1, 3, 4 ;
+ elem_ss1 = 1 ;
+ side_ss1 = 1 ;
+ elem_ss2 = 1, 2 ;
+ side_ss2 = 2, 3 ;
+ elem_ss3 = 2 ;
+ side_ss3 = 2 ;
+}
