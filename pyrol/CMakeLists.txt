@@ -44,6 +44,16 @@ TRIBITS_ADD_OPTION_AND_DEFINE(PYROL_ENABLE_BINDER_UPDATE
   "Enable the update of the generated source files with Binder."
   OFF )
 
+TRIBITS_ADD_OPTION_AND_DEFINE(PYROL_ENABLE_NAVIER_STOKES
+  PYROL_HAVE_NAVIER_STOKES
+  "Build the PyROL dynamic Navier-Stokes objective extension."
+  OFF )
+
+TRIBITS_ADD_OPTION_AND_DEFINE(PYROL_ENABLE_FLOW_OPT
+  PYROL_HAVE_FLOW_OPT
+  "Build the PyROL axisymmetric flow-opt objective extensions."
+  OFF )
+
 MESSAGE("-- Python3_EXECUTABLE:")
 IF(NOT DEFINED ${Python3_EXECUTABLE})
   find_program(Python3_EXECUTABLE
@@ -158,6 +168,7 @@ list(APPEND ROL_all_include_dirs "${PARAMETERLIST_DIR}")
 list(APPEND ROL_all_include_dirs "${LA_DIR}")
 list(APPEND ROL_all_include_dirs "${LAPACK_DIR}")
 list(APPEND ROL_all_include_dirs "${BLAS_DIR}")
+list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/compatibility/teuchos/mpi")
 
 list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed")
 list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed/algorithm")
@@ -170,6 +181,7 @@ list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed/utilitie
 list(APPEND ROL_all_include_dirs "${${PACKAGE_NAME}_SOURCE_DIR}/src/oed/vector")
 
 IF (PYROL_GENERATE_SRC)
+  SET(PYROL_HAS_GENERATED_BINDINGS ON)
   MESSAGE("-- PyROL_BINDER_EXECUTABLE:")
   IF(NOT DEFINED PyROL_BINDER_EXECUTABLE)
     find_program(PyROL_BINDER_EXECUTABLE
@@ -331,8 +343,17 @@ IF (PYROL_GENERATE_SRC)
     FILE(COPY ${CMAKE_CURRENT_BINARY_DIR}/binder DESTINATION ${CMAKE_CURRENT_SOURCE_DIR})
   ENDIF()
 ELSE()
-  # Copy binder files to ${CMAKE_CURRENT_BINARY_DIR}
-  FILE(COPY ${CMAKE_CURRENT_SOURCE_DIR}/binder DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/binder)
+    SET(PYROL_HAS_GENERATED_BINDINGS ON)
+    # Copy binder files to ${CMAKE_CURRENT_BINARY_DIR}
+    FILE(COPY ${CMAKE_CURRENT_SOURCE_DIR}/binder DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+  ELSE()
+    SET(PYROL_HAS_GENERATED_BINDINGS OFF)
+    MESSAGE(WARNING
+      "Pre-generated PyROL Binder sources were not found. "
+      "The main pyrol.so bindings will not be built; handwritten extensions "
+      "such as _navier_stokes can still be built.")
+  ENDIF()
 ENDIF()
 
 # Get the python version
@@ -415,6 +436,22 @@ EXECUTE_PROCESS(COMMAND
   ERROR_VARIABLE  Mpi4Py_INCLUDE_ERROR
   OUTPUT_STRIP_TRAILING_WHITESPACE
   )
+
+IF(PYROL_ENABLE_NAVIER_STOKES)
+  SET(PYROL_NAVIER_STOKES_MISSING_PACKAGES "")
+  FOREACH(depPkg Intrepid Ifpack2 MueLu Amesos2 Tpetra)
+    SET(PYROL_NAVIER_STOKES_DEP_ENABLED "${${PROJECT_NAME}_ENABLE_${depPkg}}")
+    IF(NOT PYROL_NAVIER_STOKES_DEP_ENABLED)
+      LIST(APPEND PYROL_NAVIER_STOKES_MISSING_PACKAGES ${depPkg})
+    ENDIF()
+  ENDFOREACH()
+
+  IF(PYROL_NAVIER_STOKES_MISSING_PACKAGES)
+    MESSAGE(FATAL_ERROR
+      "PYROL_ENABLE_NAVIER_STOKES requires these Trilinos packages: "
+      "${PYROL_NAVIER_STOKES_MISSING_PACKAGES}")
+  ENDIF()
+ENDIF()
 
 ADD_SUBDIRECTORY( src )
 

@@ -18,9 +18,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake ninja-build libopenblas-dev
+        sudo apt-get install -y openmpi-bin libopenmpi-dev libsuitesparse-dev
         # see https://cppbinder.readthedocs.io/en/latest/install.html#id1
         sudo apt-get install -y clang-15 llvm-15 libclang-15-dev llvm-15-dev
         python3 -m pip install build
+        python3 -m pip install mpi4py
         python3 -m pip install pybind11@git+https://github.com/pybind/pybind11.git@c6c9a9e59b2b64393de0432aa6867ed27367912a
     - name: Build Binder
       run: |
@@ -35,7 +37,7 @@ jobs:
         ctest --test-dir ../binder-build --output-on-failure
         cmake --install ../binder-build
     - name: Clone Trilinos
-      run: git clone https://github.com/trilinos/Trilinos.git --depth 1 ../trilinos
+      run: git clone https://github.com/trilinos/Trilinos.git --branch trilinos-release-15-1-1 --depth 1 ../trilinos
     - name: Copy ROL
       run: rsync -ar --delete . ../trilinos/packages/rol
     - name: Write version
@@ -49,8 +51,10 @@ jobs:
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
-              -D CPACK_SOURCE_IGNORE_FILES="/packages/rol/example;/packages/rol/test;/packages/rol/tutorial;/packages/teuchos/core/test;/packages/teuchos/core/example;/packages/teuchos/numerics/test;/packages/teuchos/numerics/example;/packages/teuchos/parameterlist/test;/packages/teuchos/parameterlist/example;/packages/teuchos/parser/test;/packages/teuchos/parser/example;/packages/teuchos/remainder/test;/packages/teuchos/remainder/example;/packages/teuchos/comm/test;/packages/teuchos/comm/example" \
+              -D CPACK_SOURCE_IGNORE_FILES="/packages/rol/test;/packages/rol/tutorial;/packages/teuchos/core/test;/packages/teuchos/core/example;/packages/teuchos/numerics/test;/packages/teuchos/numerics/example;/packages/teuchos/parameterlist/test;/packages/teuchos/parameterlist/example;/packages/teuchos/parser/test;/packages/teuchos/parser/example;/packages/teuchos/remainder/test;/packages/teuchos/remainder/example;/packages/teuchos/comm/test;/packages/teuchos/comm/example" \
               -D BUILD_SHARED_LIBS:BOOL=ON \
+              -D TPL_ENABLE_MPI:BOOL=ON \
+              -D TPL_ENABLE_SuiteSparse:BOOL=ON \
               -D ROL_ENABLE_EXAMPLES:BOOL=OFF \
               -D ROL_ENABLE_PYROL:BOOL=ON \
               -D ROL_ENABLE_TESTS:BOOL=OFF \
@@ -65,7 +69,14 @@ jobs:
               -D Trilinos_ENABLE_EXAMPLES:BOOL=OFF \
               -D Trilinos_ENABLE_Fortran:BOOL=OFF \
               -D Trilinos_ENABLE_ROL:BOOL=ON \
+              -D Trilinos_ENABLE_Tpetra:BOOL=ON \
+              -D Trilinos_ENABLE_Intrepid:BOOL=ON \
+              -D Trilinos_ENABLE_Ifpack2:BOOL=ON \
+              -D Trilinos_ENABLE_MueLu:BOOL=ON \
+              -D Trilinos_ENABLE_Amesos2:BOOL=ON \
+              -D Trilinos_ENABLE_Belos:BOOL=ON \
               -D Trilinos_ENABLE_TESTS:BOOL=OFF \
+              -D PYROL_ENABLE_NAVIER_STOKES:BOOL=ON \
               -B ../trilinos-build \
               ../trilinos
     - name: Create reduced tarball (ROL + Binder files + Teuchos)
@@ -116,9 +127,17 @@ jobs:
         CIBW_BUILD: "cp3*"
         CIBW_SKIP: "*i686 *musllinux*"
         CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT_LINUX: "PATH=/usr/lib64/openmpi/bin:$PATH LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH"
         CIBW_BEFORE_ALL_LINUX: |
-          yum install -y openblas-devel ninja-build
-        CIBW_TEST_COMMAND: 
+          yum install -y openblas-devel ninja-build openmpi-devel suitesparse-devel
+        CIBW_BEFORE_ALL_MACOS: |
+          brew install openblas ninja suite-sparse open-mpi
+        CIBW_BEFORE_BUILD: |
+          python -m pip install mpi4py
+        CIBW_TEST_COMMAND_LINUX: |
+          cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest test_typeU.py
+          cd {project}/packages/rol/pyrol/test/navier_stokes && python -m unittest test_objective.py
+        CIBW_TEST_COMMAND_MACOS: |
           cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest test_typeU.py
     - name: Set artifact name
       run: |
