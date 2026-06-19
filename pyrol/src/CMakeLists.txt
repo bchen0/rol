@@ -90,6 +90,7 @@ IF(PYROL_ENABLE_NAVIER_STOKES)
   foreach(depPkg IN LISTS ROL_LIB_ENABLED_DEPENDENCIES)
     target_link_libraries(_navier_stokes PUBLIC ${depPkg}::all_libs)
   endforeach()
+  target_link_libraries(_navier_stokes PUBLIC Intrepid::all_libs)
   target_link_libraries(_navier_stokes PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
   set_target_properties(_navier_stokes PROPERTIES SUFFIX ".so")
 
@@ -117,6 +118,7 @@ IF(PYROL_ENABLE_NAVIER_STOKES)
   foreach(depPkg IN LISTS ROL_LIB_ENABLED_DEPENDENCIES)
     target_link_libraries(navier_stokes_reference PUBLIC ${depPkg}::all_libs)
   endforeach()
+  target_link_libraries(navier_stokes_reference PUBLIC Intrepid::all_libs)
   target_link_libraries(navier_stokes_reference PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
 
   add_custom_command(TARGET navier_stokes_reference POST_BUILD
@@ -162,6 +164,7 @@ IF(PYROL_ENABLE_FLOW_OPT)
     foreach(depPkg IN LISTS ROL_LIB_ENABLED_DEPENDENCIES)
       target_link_libraries(${MODULE_NAME} PUBLIC ${depPkg}::all_libs)
     endforeach()
+    target_link_libraries(${MODULE_NAME} PUBLIC Intrepid::all_libs)
     target_link_libraries(${MODULE_NAME} PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
     set_target_properties(${MODULE_NAME} PROPERTIES SUFFIX ".so")
 
@@ -195,6 +198,7 @@ IF(PYROL_ENABLE_FLOW_OPT)
     foreach(depPkg IN LISTS ROL_LIB_ENABLED_DEPENDENCIES)
       target_link_libraries(${TARGET_NAME} PUBLIC ${depPkg}::all_libs)
     endforeach()
+    target_link_libraries(${TARGET_NAME} PUBLIC Intrepid::all_libs)
     target_link_libraries(${TARGET_NAME} PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
 
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD

@@ -75,6 +75,18 @@ inline std::string joinPath(const std::string &base, const std::string &rel) {
   return base[base.size() - 1] == '/' ? base + rel : base + "/" + rel;
 }
 
+inline std::string rankPath(const std::string &path, const int rank) {
+  std::string out = path;
+  const std::string token = "{rank}";
+  const std::string rankString = std::to_string(rank);
+  std::string::size_type pos = 0;
+  while ((pos = out.find(token, pos)) != std::string::npos) {
+    out.replace(pos, token.size(), rankString);
+    pos += rankString.size();
+  }
+  return out;
+}
+
 inline void absolutizeMeshPath(ROL::ParameterList &parlist,
                                const std::string &xmlDir) {
   if (parlist.isSublist("Mesh")) {
@@ -253,13 +265,14 @@ inline int evaluateAndPrint(
     const std::string &zPath,
     const std::string &vPath,
     RealT tol = 1e-8) {
-  const std::vector<RealT> zValues = readVectorFile(zPath);
-  const std::vector<RealT> vValues = readVectorFile(vPath);
+  ROL::Ptr<const Teuchos::Comm<int>> comm = Tpetra::getDefaultComm();
+  const int rank = comm->getRank();
+  const std::vector<RealT> zValues = readVectorFile(rankPath(zPath, rank));
+  const std::vector<RealT> vValues = readVectorFile(rankPath(vPath, rank));
 
   ROL::Ptr<ROL::Vector<RealT>> v = z->clone();
   ROL::Ptr<ROL::Vector<RealT>> g = z->dual().clone();
   ROL::Ptr<ROL::Vector<RealT>> hv = z->dual().clone();
-  ROL::Ptr<const Teuchos::Comm<int>> comm = Tpetra::getDefaultComm();
 
   copyToVector(zValues, *z);
   copyToVector(vValues, *v);
