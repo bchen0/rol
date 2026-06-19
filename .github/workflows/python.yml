@@ -37,7 +37,7 @@ jobs:
         ctest --test-dir ../binder-build --output-on-failure
         cmake --install ../binder-build
     - name: Clone Trilinos
-      run: git clone https://github.com/trilinos/Trilinos.git --branch trilinos-release-15-1-1 --depth 1 ../trilinos
+      run: git clone https://github.com/trilinos/Trilinos.git --branch trilinos-release-16-2-1 --depth 1 ../trilinos
     - name: Copy ROL
       run: rsync -ar --delete . ../trilinos/packages/rol
     - name: Write version
