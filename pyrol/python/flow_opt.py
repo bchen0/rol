@@ -2,6 +2,8 @@
 
 import os
 
+import numpy as np
+
 from ._flow_opt_brinkman import _BrinkmanObjective
 from ._flow_opt_darcy import _DarcyObjective
 from ._flow_opt_filtered_darcy import _FilteredDarcyObjective
@@ -58,6 +60,11 @@ class _FlowOptObjective:
 
     def hess_vec_dot(self, v, z, tol=1e-8):
         return self._impl.hess_vec_dot(v, z, tol)
+
+    def default_control(self):
+        return np.full(self.local_size, 0.5, dtype=float)
+
+    initial_control = default_control
 
 
 class DarcyObjective(_FlowOptObjective):

@@ -1,8 +1,63 @@
 """Dynamic Navier-Stokes objective facade for PyROL."""
 
+import math
 import os
+from xml.etree import ElementTree
+
+import numpy as np
 
 from ._navier_stokes import _L1DynObjective, _NavierStokesObjective
+
+
+def _sublist(node, name):
+    if node is None:
+        return None
+    for child in node.findall("ParameterList"):
+        if child.get("name") == name:
+            return child
+    return None
+
+
+def _parameter(node, name, default, cast):
+    if node is None:
+        return default
+    for child in node.findall("Parameter"):
+        if child.get("name") == name:
+            return cast(child.get("value"))
+    return default
+
+
+def _bool_parameter(node, name, default):
+    return _parameter(node, name, default, lambda value: value.lower() == "true")
+
+
+def _navier_stokes_default_control(xml_path, num_controls):
+    root = ElementTree.parse(xml_path).getroot()
+    problem = _sublist(root, "Problem")
+    initial_guess = _sublist(problem, "Initial Guess")
+    top_initial_guess = _sublist(root, "Initial Guess")
+
+    if _bool_parameter(top_initial_guess, "Read From File", False):
+        raise ValueError(
+            "The XML requests Initial Guess/Read From File; construct z from "
+            "the initial_control.*.txt files instead."
+        )
+
+    time = _sublist(root, "Time Discretization")
+    end_time = _parameter(time, "End Time", 1.0, float)
+    num_steps = _parameter(time, "Number of Time Steps", num_controls, int)
+    dt = end_time / float(num_steps)
+
+    reynolds = _parameter(problem, "Reynolds Number", 200.0, float)
+    amp0 = 6.0 - (reynolds - 200.0) / 1600.0
+    strouhal0 = 0.74 - (reynolds - 200.0) * (0.115 / 800.0)
+    amplitude = _parameter(initial_guess, "Amplitude", amp0, float)
+    strouhal = _parameter(initial_guess, "Strouhal Number", strouhal0, float)
+    phase = _parameter(initial_guess, "Phase Shift", 0.0, float)
+
+    steps = np.arange(num_controls, dtype=float)
+    times = steps * dt
+    return -amplitude * np.sin(2.0 * math.pi * strouhal * times + phase)
 
 
 class NavierStokesObjective:
@@ -10,6 +65,7 @@ class NavierStokesObjective:
 
     def __init__(self, xml_path, cache_dir=None, spinup_time=None):
         xml_path = os.fspath(xml_path)
+        self._xml_path = xml_path
         cache_arg = "" if cache_dir is None else os.fspath(cache_dir)
         spinup_arg = -1.0 if spinup_time is None else float(spinup_time)
         self._impl = _NavierStokesObjective(xml_path, cache_arg, spinup_arg)
@@ -42,12 +98,18 @@ class NavierStokesObjective:
     def value_and_gradient(self, z, tol=1e-8):
         return self._impl.value_and_gradient(z, tol)
 
+    def default_control(self):
+        return _navier_stokes_default_control(self._xml_path, self.num_controls)
+
+    initial_control = default_control
+
 
 class L1DynObjective:
     """Nonsmooth dynamic L1 control penalty from the Navier-Stokes example."""
 
     def __init__(self, xml_path):
-        self._impl = _L1DynObjective(os.fspath(xml_path))
+        self._xml_path = os.fspath(xml_path)
+        self._impl = _L1DynObjective(self._xml_path)
 
     @property
     def num_steps(self):
@@ -78,3 +140,8 @@ class L1DynObjective:
 
     def prox(self, z, step, tol=1e-8):
         return self._impl.prox(z, step, tol)
+
+    def default_control(self):
+        return _navier_stokes_default_control(self._xml_path, self.num_controls)
+
+    initial_control = default_control

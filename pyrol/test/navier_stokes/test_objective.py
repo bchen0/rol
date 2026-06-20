@@ -60,12 +60,18 @@ class TestNavierStokesObjective(unittest.TestCase):
 
             objective = L1DynObjective(xml_path)
             z = np.array([-0.3, 0.4])
+            default_control = objective.default_control()
+            expected_default = np.array([
+                0.0,
+                -6.0 * math.sin(2.0 * math.pi * 0.74 * (0.05 / 2.0)),
+            ])
 
             dt = 0.05 / 2.0
             expected_value = objective.l1_control_cost * dt * abs(z[1])
             self.assertEqual(objective.num_steps, 2)
             self.assertEqual(objective.num_controls, 2)
             self.assertAlmostEqual(objective.theta, 1.0)
+            np.testing.assert_allclose(default_control, expected_default)
             self.assertAlmostEqual(objective.value(z), expected_value)
 
             step = 2.0
@@ -88,6 +94,7 @@ class TestNavierStokesObjective(unittest.TestCase):
             write_smoke_xml(xml_path)
 
             objective = NavierStokesObjective(xml_path, cache_dir=cache_dir, spinup_time=0)
+            default_control = objective.default_control()
             z = np.zeros(objective.num_controls)
             v = np.ones(objective.num_controls)
 
@@ -98,6 +105,8 @@ class TestNavierStokesObjective(unittest.TestCase):
 
             self.assertEqual(objective.num_steps, 2)
             self.assertEqual(objective.num_controls, 2)
+            self.assertEqual(default_control.shape, (2,))
+            self.assertAlmostEqual(default_control[0], 0.0)
             self.assertTrue(math.isfinite(value))
             self.assertTrue(math.isfinite(value2))
             self.assertEqual(gradient.shape, (2,))

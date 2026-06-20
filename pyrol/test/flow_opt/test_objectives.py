@@ -158,6 +158,10 @@ class TestFlowOptObjectives(unittest.TestCase):
                     )
 
                 objective = objective_type(xml_path)
+                default_control = objective.default_control()
+                self.assertEqual(default_control.shape, (objective.local_size,))
+                np.testing.assert_allclose(default_control, 0.5)
+
                 z = np.full(objective.local_size, 0.5)
                 if objective.parameter_size:
                     z[-objective.parameter_size :] = np.array([0.0, 15.0])
