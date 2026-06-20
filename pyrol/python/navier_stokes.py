@@ -2,7 +2,7 @@
 
 import os
 
-from ._navier_stokes import _NavierStokesObjective
+from ._navier_stokes import _L1DynObjective, _NavierStokesObjective
 
 
 class NavierStokesObjective:
@@ -41,3 +41,40 @@ class NavierStokesObjective:
 
     def value_and_gradient(self, z, tol=1e-8):
         return self._impl.value_and_gradient(z, tol)
+
+
+class L1DynObjective:
+    """Nonsmooth dynamic L1 control penalty from the Navier-Stokes example."""
+
+    def __init__(self, xml_path):
+        self._impl = _L1DynObjective(os.fspath(xml_path))
+
+    @property
+    def num_steps(self):
+        return self._impl.num_steps
+
+    @property
+    def num_controls(self):
+        return self._impl.num_controls
+
+    @property
+    def l1_control_cost(self):
+        return self._impl.l1_control_cost
+
+    @property
+    def lower_bound(self):
+        return self._impl.lower_bound
+
+    @property
+    def upper_bound(self):
+        return self._impl.upper_bound
+
+    @property
+    def theta(self):
+        return self._impl.theta
+
+    def value(self, z, tol=1e-8):
+        return self._impl.value(z, tol)
+
+    def prox(self, z, step, tol=1e-8):
+        return self._impl.prox(z, step, tol)

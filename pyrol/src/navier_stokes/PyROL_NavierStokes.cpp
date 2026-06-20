@@ -28,6 +28,7 @@
 
 #include "dynpde_navier-stokes.hpp"
 #include "initial_condition.hpp"
+#include "l1penaltydynamic.hpp"
 #include "obj_navier-stokes.hpp"
 
 #include <algorithm>
@@ -593,6 +594,201 @@ private:
   std::atomic<bool> busy_;
 };
 
+class L1DynObjective {
+public:
+  explicit L1DynObjective(const std::string &xmlPath)
+    : xmlPath_(absolutePath(xmlPath)),
+      xmlDir_(dirnameOf(xmlPath_)),
+      busy_(false) {
+    parlist_ = ROL::getParametersFromXmlFile(xmlPath_);
+
+    nt_ = parlist_->sublist("Time Discretization").get("Number of Time Steps", 100);
+    if (nt_ < 2) {
+      throw std::invalid_argument("Number of Time Steps must be at least 2");
+    }
+    const RealT T = parlist_->sublist("Time Discretization").get("End Time", 1.0);
+    dt_ = T / static_cast<RealT>(nt_);
+
+    beta_ = parlist_->sublist("Problem").get("L1 Control Cost", 1.e-2);
+    lowerBound_ = parlist_->sublist("Problem").get("Lower Control Bound", -1.e0);
+    upperBound_ = parlist_->sublist("Problem").get("Upper Control Bound", 1.e0);
+    theta_ = parlist_->sublist("Reduced Dynamic Objective")
+      .sublist("Time Discretization").get("Theta", 1.0);
+
+    buildObjective();
+  }
+
+  int numSteps() const {
+    return nt_;
+  }
+
+  int numControls() const {
+    return nt_;
+  }
+
+  RealT l1ControlCost() const {
+    return beta_;
+  }
+
+  RealT lowerBound() const {
+    return lowerBound_;
+  }
+
+  RealT upperBound() const {
+    return upperBound_;
+  }
+
+  RealT theta() const {
+    return theta_;
+  }
+
+  RealT value(const py::array_t<RealT, py::array::c_style | py::array::forcecast> &z,
+              const RealT tol) {
+    const std::vector<RealT> values = copyInput(z, "z");
+    RealT objectiveValue = 0;
+    {
+      EvaluationGuard guard(busy_);
+      copyToPartitionedVector(*z_, values);
+      RealT localTol = tol;
+      {
+        py::gil_scoped_release release;
+        objective_->update(*z_, true, -1);
+        objectiveValue = objective_->value(*z_, localTol);
+      }
+    }
+    return objectiveValue;
+  }
+
+  py::array_t<RealT> prox(
+      const py::array_t<RealT, py::array::c_style | py::array::forcecast> &z,
+      const RealT step,
+      const RealT tol) {
+    if (step < static_cast<RealT>(0)) {
+      throw std::invalid_argument("step must be nonnegative");
+    }
+    const std::vector<RealT> values = copyInput(z, "z");
+    std::vector<RealT> result;
+    {
+      EvaluationGuard guard(busy_);
+      copyToPartitionedVector(*z_, values);
+      RealT localTol = tol;
+      {
+        py::gil_scoped_release release;
+        objective_->update(*z_, true, -1);
+        pz_->zero();
+        objective_->prox(*pz_, *z_, step, localTol);
+        result = copyFromPartitionedVector(*pz_);
+      }
+    }
+    return vectorToArray(result);
+  }
+
+private:
+  void buildObjective() {
+    timeStamp_.resize(nt_);
+    for (int k = 0; k < nt_; ++k) {
+      timeStamp_.at(k).t.resize(2);
+      timeStamp_.at(k).t.at(0) = k * dt_;
+      timeStamp_.at(k).t.at(1) = (k + 1) * dt_;
+    }
+
+    zk_ = ROL::makePtr<PDE_OptVector<RealT>>(
+      ROL::makePtr<ROL::StdVector<RealT>>(1));
+    z_ = ROL::PartitionedVector<RealT>::create(*zk_, nt_);
+    pz_ = ROL::dynamicPtrCast<ROL::PartitionedVector<RealT>>(z_->clone());
+    zlo_ = ROL::PartitionedVector<RealT>::create(*zk_, nt_);
+    zhi_ = ROL::PartitionedVector<RealT>::create(*zk_, nt_);
+    zlo_->setScalar(lowerBound_);
+    zhi_->setScalar(upperBound_);
+
+    objective_ =
+      ROL::makePtr<L1_Dyn_Objective<RealT>>(*parlist_, timeStamp_, zlo_, zhi_);
+  }
+
+  std::vector<RealT> copyInput(
+      const py::array_t<RealT, py::array::c_style | py::array::forcecast> &array,
+      const char *name) const {
+    const py::buffer_info info = array.request();
+    if (info.ndim != 1) {
+      throw std::invalid_argument(std::string(name) + " must be a 1-D NumPy array");
+    }
+    if (info.shape[0] != nt_) {
+      std::ostringstream message;
+      message << name << " must have length " << nt_ << "; got " << info.shape[0];
+      throw std::invalid_argument(message.str());
+    }
+    const RealT *data = static_cast<const RealT *>(info.ptr);
+    return std::vector<RealT>(data, data + nt_);
+  }
+
+  void copyToPartitionedVector(ROL::PartitionedVector<RealT> &target,
+                               const std::vector<RealT> &values) const {
+    if (target.numVectors() != static_cast<ROL::PartitionedVector<RealT>::size_type>(nt_)) {
+      throw std::runtime_error("internal ROL vector has an unexpected number of partitions");
+    }
+    for (int k = 0; k < nt_; ++k) {
+      ROL::Ptr<PDE_OptVector<RealT>> zk =
+        ROL::dynamicPtrCast<PDE_OptVector<RealT>>(target.get(k));
+      if (zk == ROL::nullPtr || zk->getParameter() == ROL::nullPtr) {
+        throw std::runtime_error("internal ROL vector is not a parametric control vector");
+      }
+      ROL::Ptr<std::vector<RealT>> parameter = zk->getParameter()->getVector();
+      if (parameter->size() != 1) {
+        throw std::runtime_error("expected exactly one scalar parameter per time step");
+      }
+      (*parameter)[0] = values[k];
+    }
+  }
+
+  std::vector<RealT> copyFromPartitionedVector(ROL::PartitionedVector<RealT> &source) const {
+    std::vector<RealT> values(nt_, 0);
+    if (source.numVectors() != static_cast<ROL::PartitionedVector<RealT>::size_type>(nt_)) {
+      throw std::runtime_error("internal ROL vector has an unexpected number of partitions");
+    }
+    for (int k = 0; k < nt_; ++k) {
+      ROL::Ptr<PDE_OptVector<RealT>> zk =
+        ROL::dynamicPtrCast<PDE_OptVector<RealT>>(source.get(k));
+      if (zk == ROL::nullPtr || zk->getParameter() == ROL::nullPtr) {
+        throw std::runtime_error("internal ROL vector is not a parametric control vector");
+      }
+      ROL::Ptr<std::vector<RealT>> parameter = zk->getParameter()->getVector();
+      if (parameter->size() != 1) {
+        throw std::runtime_error("expected exactly one scalar parameter per time step");
+      }
+      values[k] = (*parameter)[0];
+    }
+    return values;
+  }
+
+  py::array_t<RealT> vectorToArray(const std::vector<RealT> &values) const {
+    py::array_t<RealT> array(values.size());
+    py::buffer_info info = array.request();
+    RealT *data = static_cast<RealT *>(info.ptr);
+    std::copy(values.begin(), values.end(), data);
+    return array;
+  }
+
+  std::string xmlPath_;
+  std::string xmlDir_;
+  int nt_ = 0;
+  RealT dt_ = 0;
+  RealT beta_ = 0;
+  RealT lowerBound_ = 0;
+  RealT upperBound_ = 0;
+  RealT theta_ = 1;
+
+  ROL::Ptr<ROL::ParameterList> parlist_;
+  std::vector<ROL::TimeStamp<RealT>> timeStamp_;
+  ROL::Ptr<PDE_OptVector<RealT>> zk_;
+  ROL::Ptr<ROL::PartitionedVector<RealT>> z_;
+  ROL::Ptr<ROL::PartitionedVector<RealT>> pz_;
+  ROL::Ptr<ROL::PartitionedVector<RealT>> zlo_;
+  ROL::Ptr<ROL::PartitionedVector<RealT>> zhi_;
+  ROL::Ptr<L1_Dyn_Objective<RealT>> objective_;
+
+  std::atomic<bool> busy_;
+};
+
 } // namespace
 
 PYBIND11_MODULE(_navier_stokes, m) {
@@ -615,4 +811,18 @@ PYBIND11_MODULE(_navier_stokes, m) {
          py::arg("v"), py::arg("z"), py::arg("tol") = 1e-8)
     .def("value_and_gradient", &NavierStokesObjective::valueAndGradient,
          py::arg("z"), py::arg("tol") = 1e-8);
+
+  py::class_<L1DynObjective>(m, "_L1DynObjective")
+    .def(py::init<const std::string &>(),
+         py::arg("xml_path"))
+    .def_property_readonly("num_steps", &L1DynObjective::numSteps)
+    .def_property_readonly("num_controls", &L1DynObjective::numControls)
+    .def_property_readonly("l1_control_cost", &L1DynObjective::l1ControlCost)
+    .def_property_readonly("lower_bound", &L1DynObjective::lowerBound)
+    .def_property_readonly("upper_bound", &L1DynObjective::upperBound)
+    .def_property_readonly("theta", &L1DynObjective::theta)
+    .def("value", &L1DynObjective::value,
+         py::arg("z"), py::arg("tol") = 1e-8)
+    .def("prox", &L1DynObjective::prox,
+         py::arg("z"), py::arg("step"), py::arg("tol") = 1e-8);
 }

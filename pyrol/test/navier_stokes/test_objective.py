@@ -7,7 +7,7 @@ from xml.etree import ElementTree
 
 import numpy as np
 
-from pyrol.navier_stokes import NavierStokesObjective
+from pyrol.navier_stokes import L1DynObjective, NavierStokesObjective
 
 
 HERE = Path(__file__).resolve().parent
@@ -52,6 +52,32 @@ def write_smoke_xml(path):
 
 
 class TestNavierStokesObjective(unittest.TestCase):
+    def test_l1_dynamic_objective_value_and_prox(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            xml_path = work / "input.xml"
+            write_smoke_xml(xml_path)
+
+            objective = L1DynObjective(xml_path)
+            z = np.array([-0.3, 0.4])
+
+            dt = 0.05 / 2.0
+            expected_value = objective.l1_control_cost * dt * abs(z[1])
+            self.assertEqual(objective.num_steps, 2)
+            self.assertEqual(objective.num_controls, 2)
+            self.assertAlmostEqual(objective.theta, 1.0)
+            self.assertAlmostEqual(objective.value(z), expected_value)
+
+            step = 2.0
+            expected_prox = np.array([
+                z[0],
+                z[1] - step * dt * objective.l1_control_cost,
+            ])
+            np.testing.assert_allclose(objective.prox(z, step), expected_prox)
+
+            outside_bounds = np.array([objective.upper_bound + 1.0, 0.0])
+            self.assertGreater(objective.value(outside_bounds), 1e300)
+
     def test_value_gradient_and_hess_vec_shapes(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
