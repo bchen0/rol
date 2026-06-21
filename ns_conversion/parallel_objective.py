@@ -188,10 +188,14 @@ def shutdown_workers(root=ROOT):
 # Seria run: python your_script.py
     
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=4
+    
+# export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 # python your_script.py
-
+    
 # parallel run: 
 # #SBATCH --ntasks=8
 # #SBATCH --cpus-per-task=1
