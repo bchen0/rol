@@ -12,3 +12,41 @@ export MPICXX="$CONDA_PREFIX/bin/mpicxx"
 export CMAKE_ARGS="-DCMAKE_C_COMPILER=$MPICC -DCMAKE_CXX_COMPILER=$MPICXX -DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX -DMPI_EXEC=$CONDA_PREFIX/bin/mpiexec -DMPIEXEC_EXECUTABLE=$CONDA_PREFIX/bin/mpiexec"
 
 python -m pip install --no-build-isolation -e .
+
+# If you have issues with duplicate rpath entries
+
+PYROL_DIR="$CONDA_PREFIX/lib/python3.12/site-packages/pyrol"
+BAD_RPATH="$CONDA_PREFIX/lib"
+
+count_rpath() {
+    otool -l "$1" | awk '
+        /cmd LC_RPATH/ { in_rpath=1 }
+        in_rpath && /path / { print $2; in_rpath=0 }
+    ' | grep -Fx "$2" | wc -l | tr -d ' '
+}
+
+for f in "$PYROL_DIR/pyrol.so" "$PYROL_DIR/lib/"*.dylib; do
+    [ -e "$f" ] || continue
+
+    n=$(count_rpath "$f" "$BAD_RPATH")
+
+    if [ "$n" -gt 1 ]; then
+        echo "Fixing $f: found $n copies of $BAD_RPATH"
+
+        while [ "$(count_rpath "$f" "$BAD_RPATH")" -gt 1 ]; do
+            before=$(count_rpath "$f" "$BAD_RPATH")
+            install_name_tool -delete_rpath "$BAD_RPATH" "$f" || break
+            after=$(count_rpath "$f" "$BAD_RPATH")
+
+            if [ "$after" -ge "$before" ]; then
+                echo "Warning: rpath count did not decrease for $f"
+                break
+            fi
+        done
+
+        if [ "$(count_rpath "$f" "$BAD_RPATH")" -eq 0 ]; then
+            echo "Re-adding one copy of $BAD_RPATH to $f"
+            install_name_tool -add_rpath "$BAD_RPATH" "$f"
+        fi
+    fi
+done
