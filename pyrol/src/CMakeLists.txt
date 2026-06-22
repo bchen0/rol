@@ -44,6 +44,7 @@ foreach(depPkg IN LISTS ROL_LIB_ENABLED_DEPENDENCIES)
 endforeach()
 target_link_libraries(pyrol PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
 set_target_properties(pyrol PROPERTIES SUFFIX ".so")
+PYROL_DEDUPLICATE_MACOS_RPATHS(pyrol)
 
 INSTALL(TARGETS pyrol
   DESTINATION ${PyROL_INSTALL_DIR})
@@ -93,6 +94,7 @@ IF(PYROL_ENABLE_NAVIER_STOKES)
   target_link_libraries(_navier_stokes PUBLIC Intrepid::all_libs)
   target_link_libraries(_navier_stokes PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
   set_target_properties(_navier_stokes PROPERTIES SUFFIX ".so")
+  PYROL_DEDUPLICATE_MACOS_RPATHS(_navier_stokes)
 
   INSTALL(TARGETS _navier_stokes
     DESTINATION ${PyROL_INSTALL_DIR})
@@ -167,6 +169,7 @@ IF(PYROL_ENABLE_FLOW_OPT)
     target_link_libraries(${MODULE_NAME} PUBLIC Intrepid::all_libs)
     target_link_libraries(${MODULE_NAME} PUBLIC ${Trilinos_EXTRA_LINK_FLAGS})
     set_target_properties(${MODULE_NAME} PROPERTIES SUFFIX ".so")
+    PYROL_DEDUPLICATE_MACOS_RPATHS(${MODULE_NAME})
 
     INSTALL(TARGETS ${MODULE_NAME}
       DESTINATION ${PyROL_INSTALL_DIR})
