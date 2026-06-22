@@ -3,6 +3,8 @@
 import math
 import os
 from xml.etree import ElementTree
+from pyrol.getTypeName import *
+
 
 import numpy as np
 
@@ -104,7 +106,7 @@ class NavierStokesObjective:
     initial_control = default_control
 
 
-class L1DynObjective:
+class L1DynObjective(getTypeName('Objective')):
     """Nonsmooth dynamic L1 control penalty from the Navier-Stokes example."""
 
     def __init__(self, xml_path):
