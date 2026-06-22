@@ -139,7 +139,7 @@ jobs:
         CIBW_SKIP: "*i686 *musllinux*"
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_LINUX: "PATH=/usr/lib64/openmpi/bin:$PATH LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH MPICC=/usr/lib64/openmpi/bin/mpicc MPICXX=/usr/lib64/openmpi/bin/mpicxx CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec'"
-        CIBW_ENVIRONMENT_MACOS: "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH MPICC=mpicc MPICXX=mpicxx CMAKE_ARGS='-DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DMPI_C_COMPILER=mpicc -DMPI_CXX_COMPILER=mpicxx -DMPI_EXEC=mpiexec -DMPIEXEC_EXECUTABLE=mpiexec'"
+        CIBW_ENVIRONMENT_MACOS: "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH OMPI_CC=/usr/bin/clang OMPI_CXX=/usr/bin/clang++ MPICC=mpicc MPICXX=mpicxx CMAKE_ARGS='-DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DMPI_C_COMPILER=mpicc -DMPI_CXX_COMPILER=mpicxx -DMPI_EXEC=mpiexec -DMPIEXEC_EXECUTABLE=mpiexec'"
         CIBW_BEFORE_ALL_LINUX: |
           yum install -y openblas-devel ninja-build openmpi-devel suitesparse-devel
         CIBW_BEFORE_ALL_MACOS: |
@@ -148,6 +148,8 @@ jobs:
           which mpicc
           which mpicxx
           which mpiexec
+          mpicc --showme:command
+          mpicxx --showme:command
           mpicc --showme:version
           python -m pip install --no-binary=mpi4py --no-cache-dir mpi4py
           python -c "from mpi4py import MPI; print(MPI.Get_library_version())"
