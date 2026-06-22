@@ -12,6 +12,29 @@ TRIBITS_ADD_OPTION_AND_DEFINE(PYROL_PIP_INSTALL
   "Logic specific to the scikit-build-core backend."
   OFF )
 
+FUNCTION(PYROL_NORMALIZE_INSTALL_RPATH)
+  SET(_pyrol_install_rpath "${CMAKE_INSTALL_RPATH}")
+
+  IF(DEFINED ENV{CONDA_PREFIX} AND NOT "$ENV{CONDA_PREFIX}" STREQUAL "")
+    LIST(APPEND _pyrol_install_rpath "$ENV{CONDA_PREFIX}/lib")
+  ENDIF()
+
+  IF(_pyrol_install_rpath)
+    LIST(REMOVE_DUPLICATES _pyrol_install_rpath)
+  ENDIF()
+
+  SET(CMAKE_INSTALL_RPATH "${_pyrol_install_rpath}"
+    CACHE STRING "Runtime library search path for installed PyROL modules." FORCE)
+  SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE
+    CACHE BOOL "Do not append linked library directories to PyROL install RPATH." FORCE)
+
+  MESSAGE(STATUS "PyROL install RPATH: ${CMAKE_INSTALL_RPATH}")
+ENDFUNCTION()
+
+IF(PYROL_PIP_INSTALL)
+  PYROL_NORMALIZE_INSTALL_RPATH()
+ENDIF()
+
 TRIBITS_ADD_OPTION_AND_DEFINE(PYROL_ENABLE_BINDER
   PYROL_GENERATE_SRC
   "Enable regeneration of source files with Binder."
