@@ -1,0 +1,7 @@
+conda activate your-env
+
+export MPICC="$CONDA_PREFIX/bin/mpicc"
+export MPICXX="$CONDA_PREFIX/bin/mpicxx"
+export CMAKE_ARGS="-DCMAKE_C_COMPILER=$MPICC -DCMAKE_CXX_COMPILER=$MPICXX -DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX -DMPI_EXEC=$CONDA_PREFIX/bin/mpiexec -DMPIEXEC_EXECUTABLE=$CONDA_PREFIX/bin/mpiexec"
+
+pip install --no-build-isolation -e .
