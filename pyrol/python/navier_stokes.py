@@ -112,6 +112,7 @@ class L1DynObjective(getTypeName('Objective')):
     def __init__(self, xml_path):
         self._xml_path = os.fspath(xml_path)
         self._impl = _L1DynObjective(self._xml_path)
+        super().__init__()
 
     @property
     def num_steps(self):
