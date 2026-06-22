@@ -1,7 +1,9 @@
 """Dynamic Navier-Stokes objective facade for PyROL."""
 
+from contextlib import contextmanager
 import math
 import os
+import threading
 from xml.etree import ElementTree
 from pyrol.getTypeName import *
 
@@ -9,6 +11,25 @@ from pyrol.getTypeName import *
 import numpy as np
 
 from ._navier_stokes import _L1DynObjective, _NavierStokesObjective
+
+_CWD_LOCK = threading.Lock()
+
+
+@contextmanager
+def _temporary_working_directory(path):
+    if path is None:
+        yield
+        return
+
+    path = os.path.abspath(os.fspath(path))
+    os.makedirs(path, exist_ok=True)
+    with _CWD_LOCK:
+        previous = os.getcwd()
+        os.chdir(path)
+        try:
+            yield
+        finally:
+            os.chdir(previous)
 
 
 def _sublist(node, name):
@@ -65,12 +86,23 @@ def _navier_stokes_default_control(xml_path, num_controls):
 class NavierStokesObjective:
     """Reduced dynamic Navier-Stokes objective backed by Trilinos."""
 
-    def __init__(self, xml_path, cache_dir=None, spinup_time=None):
-        xml_path = os.fspath(xml_path)
+    def __init__(
+        self,
+        xml_path,
+        cache_dir=None,
+        spinup_time=None,
+        mesh_output_dir=None,
+    ):
+        xml_path = os.path.abspath(os.fspath(xml_path))
         self._xml_path = xml_path
-        cache_arg = "" if cache_dir is None else os.fspath(cache_dir)
+        self._mesh_output_dir = (
+            None if mesh_output_dir is None
+            else os.path.abspath(os.fspath(mesh_output_dir))
+        )
+        cache_arg = "" if cache_dir is None else os.path.abspath(os.fspath(cache_dir))
         spinup_arg = -1.0 if spinup_time is None else float(spinup_time)
-        self._impl = _NavierStokesObjective(xml_path, cache_arg, spinup_arg)
+        with _temporary_working_directory(self._mesh_output_dir):
+            self._impl = _NavierStokesObjective(xml_path, cache_arg, spinup_arg)
 
     @property
     def num_steps(self):

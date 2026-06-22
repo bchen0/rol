@@ -90,10 +90,17 @@ class TestNavierStokesObjective(unittest.TestCase):
             shutil.copy2(HERE / "channel.txt", work / "channel.txt")
             xml_path = work / "input.xml"
             cache_dir = work / "cache"
+            mesh_output_dir = work / "mesh_output"
             cache_dir.mkdir()
             write_smoke_xml(xml_path)
 
-            objective = NavierStokesObjective(xml_path, cache_dir=cache_dir, spinup_time=0)
+            cwd = Path.cwd()
+            objective = NavierStokesObjective(
+                xml_path,
+                cache_dir=cache_dir,
+                spinup_time=0,
+                mesh_output_dir=mesh_output_dir,
+            )
             default_control = objective.default_control()
             z = np.zeros(objective.num_controls)
             v = np.ones(objective.num_controls)
@@ -105,6 +112,10 @@ class TestNavierStokesObjective(unittest.TestCase):
 
             self.assertEqual(objective.num_steps, 2)
             self.assertEqual(objective.num_controls, 2)
+            self.assertEqual(Path.cwd(), cwd)
+            if objective.comm_rank == 0:
+                self.assertTrue((mesh_output_dir / "cell_to_node_quad.txt").is_file())
+                self.assertTrue((mesh_output_dir / "nodes.txt").is_file())
             self.assertEqual(default_control.shape, (2,))
             self.assertAlmostEqual(default_control[0], 0.0)
             self.assertTrue(math.isfinite(value))
