@@ -21,8 +21,13 @@ jobs:
         sudo apt-get install -y openmpi-bin libopenmpi-dev libsuitesparse-dev
         # see https://cppbinder.readthedocs.io/en/latest/install.html#id1
         sudo apt-get install -y clang-15 llvm-15 libclang-15-dev llvm-15-dev
+        echo "MPICC=$(command -v mpicc)" >> "$GITHUB_ENV"
+        echo "MPICXX=$(command -v mpicxx)" >> "$GITHUB_ENV"
+        echo "MPI_EXEC=$(command -v mpiexec)" >> "$GITHUB_ENV"
+        echo "MPIEXEC_EXECUTABLE=$(command -v mpiexec)" >> "$GITHUB_ENV"
         python3 -m pip install build
-        python3 -m pip install mpi4py
+        MPICC="$(command -v mpicc)" python3 -m pip install --no-binary=mpi4py --no-cache-dir mpi4py
+        python3 -c "from mpi4py import MPI; print(MPI.Get_library_version())"
         python3 -m pip install pybind11@git+https://github.com/pybind/pybind11.git@c6c9a9e59b2b64393de0432aa6867ed27367912a
     - name: Build Binder
       run: |
@@ -51,8 +56,14 @@ jobs:
       run: |
         cmake -G Ninja \
               -D CMAKE_BUILD_TYPE:STRING=RELEASE \
+              -D CMAKE_C_COMPILER:FILEPATH="${MPICC}" \
+              -D CMAKE_CXX_COMPILER:FILEPATH="${MPICXX}" \
               -D CPACK_SOURCE_IGNORE_FILES="/packages/rol/test;/packages/rol/tutorial;/packages/teuchos/core/test;/packages/teuchos/core/example;/packages/teuchos/numerics/test;/packages/teuchos/numerics/example;/packages/teuchos/parameterlist/test;/packages/teuchos/parameterlist/example;/packages/teuchos/parser/test;/packages/teuchos/parser/example;/packages/teuchos/remainder/test;/packages/teuchos/remainder/example;/packages/teuchos/comm/test;/packages/teuchos/comm/example" \
               -D BUILD_SHARED_LIBS:BOOL=ON \
+              -D MPI_C_COMPILER:FILEPATH="${MPICC}" \
+              -D MPI_CXX_COMPILER:FILEPATH="${MPICXX}" \
+              -D MPI_EXEC:FILEPATH="${MPI_EXEC}" \
+              -D MPIEXEC_EXECUTABLE:FILEPATH="${MPIEXEC_EXECUTABLE}" \
               -D TPL_ENABLE_MPI:BOOL=ON \
               -D TPL_ENABLE_SuiteSparse:BOOL=ON \
               -D ROL_ENABLE_EXAMPLES:BOOL=OFF \
@@ -127,13 +138,19 @@ jobs:
         CIBW_BUILD: "cp3*"
         CIBW_SKIP: "*i686 *musllinux*"
         CIBW_BUILD_VERBOSITY: 1
-        CIBW_ENVIRONMENT_LINUX: "PATH=/usr/lib64/openmpi/bin:$PATH LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH"
+        CIBW_ENVIRONMENT_LINUX: "PATH=/usr/lib64/openmpi/bin:$PATH LD_LIBRARY_PATH=/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH MPICC=/usr/lib64/openmpi/bin/mpicc MPICXX=/usr/lib64/openmpi/bin/mpicxx CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec'"
+        CIBW_ENVIRONMENT_MACOS: "PATH=/opt/homebrew/bin:/usr/local/bin:$PATH MPICC=mpicc MPICXX=mpicxx CMAKE_ARGS='-DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DMPI_C_COMPILER=mpicc -DMPI_CXX_COMPILER=mpicxx -DMPI_EXEC=mpiexec -DMPIEXEC_EXECUTABLE=mpiexec'"
         CIBW_BEFORE_ALL_LINUX: |
           yum install -y openblas-devel ninja-build openmpi-devel suitesparse-devel
         CIBW_BEFORE_ALL_MACOS: |
           brew install openblas ninja suite-sparse open-mpi
         CIBW_BEFORE_BUILD: |
-          python -m pip install mpi4py
+          which mpicc
+          which mpicxx
+          which mpiexec
+          mpicc --showme:version
+          python -m pip install --no-binary=mpi4py --no-cache-dir mpi4py
+          python -c "from mpi4py import MPI; print(MPI.Get_library_version())"
         CIBW_TEST_COMMAND_LINUX: |
           cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest test_typeU.py
           cd {project}/packages/rol/pyrol/test/navier_stokes && python -m unittest test_objective.py
