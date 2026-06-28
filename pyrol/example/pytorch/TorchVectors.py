@@ -1,9 +1,8 @@
+import collections
+
 from pyrol.pyrol import ROL
 from pyrol.getTypeName import *
-
 import torch
-
-import copy
 
 
 class PythonVector(getTypeName('Vector')):
@@ -43,12 +42,15 @@ class TensorVector(PythonVector):
         ans = torch.sum(torch.mul(self.tensor, other.tensor))
         return ans.item()
 
+    # @torch.no_grad()
+    # def clone(self):
+    #     tensor = copy.deepcopy(self.tensor.detach())
+    #     ans = TensorVector(tensor)
+    #     ans.zero()
+    #     return ans
     @torch.no_grad()
     def clone(self):
-        tensor = copy.deepcopy(self.tensor)
-        ans = TensorVector(tensor)
-        ans.zero()
-        return ans
+        return TensorVector(torch.zeros_like(self.tensor))
 
     @torch.no_grad()
     def dimension(self):
@@ -56,7 +58,7 @@ class TensorVector(PythonVector):
 
     @torch.no_grad()
     def setScalar(self, alpha):
-        self.fill_(alpha)
+        self.tensor.fill_(alpha)
 
     @torch.no_grad()
     def __getitem__(self, index):
@@ -89,7 +91,7 @@ class TensorVector(PythonVector):
             case ROL.Elementwise.REDUCE_BOR:
                 ans = 0
                 for i in range(self.dimension()):
-                    ans = ans | int(self[i].item())
+                    ans = ans | int(self[i])
             case _:
                 raise NotImplementedError(reduction_type)
         return ans
@@ -111,148 +113,176 @@ class TensorVector(PythonVector):
 
     ####
 
+    # @torch.no_grad()
+    # def applyUnary(self, op):
+    #     for i in range(self.dimension()):
+    #         self[i] = op.apply(self[i])
     @torch.no_grad()
     def applyUnary(self, op):
-        for i in range(self.dimension()):
-            self[i] = op.apply(self[i])
+        flat = self.tensor.view(-1)
+        for i in range(flat.numel()):
+            flat[i] = op.apply(flat[i].item())
 
+    # @torch.no_grad()
+    # def applyBinary(self, op, other):
+    #     for i in range(self.dimension()):
+    #         self[i] = op.apply(self[i], other[i])
     @torch.no_grad()
-    def applyBinary(self, other, op):
+    def applyBinary(self, op, other):
+        flat_self = self.tensor.view(-1)
+        flat_other = other.tensor.view(-1)
+
         for i in range(self.dimension()):
-            self[i] = op.apply(self[i], other[i])
+            flat_self[i] = op.apply(flat_self[i].item(), flat_other[i].item())
 
 
 class TensorDictVector(PythonVector):
 
     @torch.no_grad()
-    def __init__(self, tensor_dict):
+    def __init__(self, tensor_dict=None, *, flat=None, metadata=None):
         super().__init__()
+
+        if flat is not None:
+            assert metadata is not None
+            self.flat = flat
+            self.metadata = metadata
+            self._torch_object = self._make_views(self.flat, self.metadata)
+            return
+
         assert isinstance(tensor_dict, dict)
-        self.torch_object = tensor_dict
+
+        metadata = []
+        pieces = []
+        start = 0
+
+        for k, v in tensor_dict.items():
+            assert isinstance(v, torch.Tensor)
+            n = v.numel()
+            end = start + n
+            metadata.append((k, tuple(v.shape), start, end))
+            pieces.append(v.reshape(-1))
+            start = end
+
+        self.flat = torch.cat(pieces)
+        self.metadata = metadata
+        self._torch_object = self._make_views(self.flat, self.metadata)
+
+    @property
+    def torch_object(self):
+        return self._torch_object
+
+    @torch_object.setter
+    def torch_object(self, value):
+        self.copy_from_tensor_dict(value)
 
     @property
     def tensor_dict(self):
-        return self.torch_object
-
+        return self._torch_object
+    
     @torch.no_grad()
-    def axpy(self, alpha, other):
-        for k, v in self.tensor_dict.items():
-            v.add_(other.tensor_dict[k], alpha=alpha)
+    def copy_from_tensor_dict(self, source):
+        for k, _, _, _ in self.metadata:
+            self._torch_object[k].copy_(source[k])
 
+    @staticmethod
     @torch.no_grad()
-    def scale(self, alpha):
-        for _, v in self.tensor_dict.items():
-            v.mul_(alpha)
-
-    @torch.no_grad()
-    def zero(self):
-        for _, v in self.tensor_dict.items():
-            v.zero_()
-
-    @torch.no_grad()
-    def dot(self, other):
-        ans = 0
-        for k, v in self.tensor_dict.items():
-            ans += torch.sum(torch.mul(v, other.tensor_dict[k]))
-        return ans.item()
+    def _make_views(flat, metadata):
+        tensor_dict = collections.OrderedDict()
+        for k, shape, start, end in metadata:
+            tensor_dict[k] = flat[start:end].view(shape)
+        return tensor_dict
 
     @torch.no_grad()
     def clone(self):
-        tensor_dict = copy.deepcopy(self.tensor_dict)
-        ans = TensorDictVector(tensor_dict)
-        ans.zero()
-        return ans
+        return TensorDictVector(
+            flat=torch.zeros_like(self.flat),
+            metadata=self.metadata,
+        )
+
+    @torch.no_grad()
+    def axpy(self, alpha, other):
+        self.flat.add_(other.flat, alpha=alpha)
+
+    @torch.no_grad()
+    def scale(self, alpha):
+        self.flat.mul_(alpha)
+
+    @torch.no_grad()
+    def zero(self):
+        self.flat.zero_()
+
+    @torch.no_grad()
+    def dot(self, other):
+        return torch.sum(self.flat * other.flat).item()
 
     @torch.no_grad()
     def dimension(self):
-        # TO-DO: Cache value
-        ans = 0
-        for _, v in self.tensor_dict.items():
-            ans += v.numel()
-        return ans
+        return self.flat.numel()
 
     @torch.no_grad()
     def setScalar(self, alpha):
-        for _, v in self.tensor_dict.items():
-            v.fill_(alpha)
+        self.flat.fill_(alpha)
 
     @torch.no_grad()
     def __getitem__(self, index):
-        total = 0
-        for _, v in self.tensor_dict.items():
-            numel = v.numel()
-            if index < numel + total:
-                flat = v.view(-1)
-                return flat[index - total].item()
-            total += numel
+        return self.flat[index].item()
 
     @torch.no_grad()
     def __setitem__(self, index, value):
-        total = 0
-        for _, v in self.tensor_dict.items():
-            numel = v.numel()
-            if index < numel + total:
-                flat = v.view(-1)
-                flat[index - total] = value
-                return
-            total += numel
-
-    # Derived methods #########################################################
-
-    @torch.no_grad()
-    def reduce(self, op):
-        reduction_type = op.reductionType()
-        match reduction_type:
-            case ROL.Elementwise.REDUCE_MIN:
-                ans = float('+inf')
-                for _, v in self.tensor_dict.items():
-                    ans = min(ans, v.min().item())
-            case ROL.Elementwise.REDUCE_MAX:
-                ans = float('-inf')
-                for _, v in self.tensor_dict.items():
-                    ans = max(ans, v.max().item())
-            case ROL.Elementwise.REDUCE_SUM:
-                ans = 0
-                for _, v in self.tensor_dict.items():
-                    ans += torch.sum(v)
-                ans = ans.item()
-            case ROL.Elementwise.REDUCE_AND:
-                ans = True
-                for _, v in self.tensor_dict.items():
-                    ans = ans and v.all().item()
-                    if ans == False:
-                        break
-            case ROL.Elementwise.REDUCE_BOR:
-                ans = 0
-                for i in range(self.dimension()):
-                    ans = ans | int(self[i].item())
-            case _:
-                raise NotImplementedError(reduction_type)
-        return ans
+        self.flat[index] = value
 
     @torch.no_grad()
     def plus(self, other):
-        self.axpy(1, other)
+        self.axpy(1.0, other)
 
     @torch.no_grad()
     def norm(self):
-        return self.dot(self)**0.5
+        return self.dot(self) ** 0.5
 
     @torch.no_grad()
     def basis(self, i):
         b = self.clone()
-        b.zero()
-        b[i] = 1
+        b[i] = 1.0
         return b
 
-    ####
+    @torch.no_grad()
+    def reduce(self, op):
+        reduction_type = op.reductionType()
+
+        match reduction_type:
+            case ROL.Elementwise.REDUCE_MIN:
+                return self.flat.min().item()
+
+            case ROL.Elementwise.REDUCE_MAX:
+                return self.flat.max().item()
+
+            case ROL.Elementwise.REDUCE_SUM:
+                return self.flat.sum().item()
+
+            case ROL.Elementwise.REDUCE_AND:
+                return self.flat.all().item()
+
+            case ROL.Elementwise.REDUCE_BOR:
+                # Fallback. Usually not performance-critical unless called often.
+                ans = 0
+                flat_cpu = self.flat.detach().cpu().view(-1)
+                for i in range(flat_cpu.numel()):
+                    ans = ans | int(flat_cpu[i].item())
+                return ans
+
+            case _:
+                raise NotImplementedError(reduction_type)
 
     @torch.no_grad()
     def applyUnary(self, op):
-        for i in range(self.dimension()):
-            self[i] = op.apply(self[i])
+        flat = self.flat.view(-1)
+        for i in range(flat.numel()):
+            flat[i] = op.apply(flat[i].item())
 
     @torch.no_grad()
     def applyBinary(self, op, other):
-        for i in range(self.dimension()):
-            self[i] = op.apply(self[i], other[i])
+        flat_self = self.flat.view(-1)
+        flat_other = other.flat.view(-1)
+
+        for i in range(flat_self.numel()):
+            flat_self[i] = op.apply(flat_self[i].item(), flat_other[i].item())
