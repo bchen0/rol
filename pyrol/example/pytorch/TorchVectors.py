@@ -1,8 +1,159 @@
 import collections
+import math
 
 from pyrol.pyrol import ROL
 from pyrol.getTypeName import *
 import torch
+
+
+def _op_name(op):
+    return type(op).__name__
+
+
+def _unary_parameter(op, probe):
+    return float(op.apply(float(probe)))
+
+
+def _fill_unary_(tensor, op):
+    tensor.fill_(_unary_parameter(op, 0.0))
+
+
+def _shift_unary_(tensor, op):
+    tensor.add_(_unary_parameter(op, 0.0))
+
+
+def _scale_unary_(tensor, op):
+    tensor.mul_(_unary_parameter(op, 1.0))
+
+
+def _power_unary_(tensor, op):
+    value = _unary_parameter(op, 2.0)
+    if value <= 0.0:
+        return False
+    tensor.pow_(math.log(value, 2.0))
+    return True
+
+
+def _round_unary_(tensor, op):
+    ceil = torch.ceil(tensor)
+    floor = torch.floor(tensor)
+    tensor.copy_(torch.where(ceil - tensor <= 0.5, ceil, floor))
+
+
+def _log_unary_(tensor, op):
+    ninf = -0.1 * torch.finfo(tensor.dtype).max
+    tensor.copy_(torch.where(tensor > 0, torch.log(tensor), torch.full_like(tensor, ninf)))
+
+
+def _heaviside_unary_(tensor, op):
+    tensor.copy_(torch.where(tensor > 0,
+                             torch.ones_like(tensor),
+                             torch.where(tensor == 0,
+                                         torch.full_like(tensor, 0.5),
+                                         torch.zeros_like(tensor))))
+
+
+def _threshold_upper_unary_(tensor, op):
+    threshold = _unary_parameter(op, -1.0e100)
+    tensor.clamp_min_(threshold)
+
+
+def _threshold_lower_unary_(tensor, op):
+    threshold = _unary_parameter(op, 1.0e100)
+    tensor.clamp_max_(threshold)
+
+
+def _build_c_unary_(tensor, op):
+    tensor.mul_(0.5)
+    tensor.clamp_max_(1.0)
+
+
+_UNARY_HANDLERS = {
+    "AbsoluteValue_double_t": lambda tensor, op: tensor.abs_(),
+    "BuildC": _build_c_unary_,
+    "Fill_double_t": _fill_unary_,
+    "Heaviside_double_t": _heaviside_unary_,
+    "Logarithm_double_t": _log_unary_,
+    "Power_double_t": _power_unary_,
+    "Reciprocal_double_t": lambda tensor, op: tensor.reciprocal_(),
+    "Round_double_t": _round_unary_,
+    "Scale_double_t": _scale_unary_,
+    "Shift_double_t": _shift_unary_,
+    "Sign_double_t": lambda tensor, op: tensor.copy_(torch.sign(tensor)),
+    "SquareRoot_double_t": lambda tensor, op: tensor.sqrt_(),
+    "ThresholdLower_double_t": _threshold_lower_unary_,
+    "ThresholdUpper_double_t": _threshold_upper_unary_,
+}
+
+
+def _axpy_binary_(tensor, other, op):
+    tensor.add_(other, alpha=float(op.apply(0.0, 1.0)))
+
+
+def _aypx_binary_(tensor, other, op):
+    tensor.mul_(float(op.apply(1.0, 0.0)))
+    tensor.add_(other)
+
+
+def _active_binary_(tensor, other, op):
+    # This is exact for the offsets used by ROL_Bounds' scaling code. Other
+    # offsets fall back to the scalar path because the threshold is private.
+    eps = 1.0e-12
+    candidates = (-2.0, 0.0)
+    for offset in candidates:
+        if (op.apply(1.0, offset) == 0.0
+                and op.apply(1.0, offset + eps) == 1.0
+                and op.apply(1.0, offset - eps) == 0.0):
+            tensor.masked_fill_(other <= offset, 0.0)
+            return True
+    return False
+
+
+def _prune_binding_binary_(tensor, other, op):
+    tensor.mul_((other == 1).to(dtype=tensor.dtype))
+
+
+def _set_zero_entry_binary_(tensor, other, op):
+    tensor.copy_(torch.where(tensor == 0, other, tensor))
+
+
+_BINARY_HANDLERS = {
+    "Active": _active_binary_,
+    "Aypx_double_t": _aypx_binary_,
+    "Axpy_double_t": _axpy_binary_,
+    "Divide_double_t": lambda tensor, other, op: tensor.div_(other),
+    "DivideAndInvert_double_t": lambda tensor, other, op: tensor.copy_(other / tensor),
+    "Greater": lambda tensor, other, op: tensor.copy_(torch.maximum(tensor, other)),
+    "Greater_double_t": lambda tensor, other, op: tensor.copy_(torch.maximum(tensor, other)),
+    "Lesser": lambda tensor, other, op: tensor.copy_(torch.minimum(tensor, other)),
+    "Lesser_double_t": lambda tensor, other, op: tensor.copy_(torch.minimum(tensor, other)),
+    "LowerBinding": None,
+    "Max_double_t": lambda tensor, other, op: tensor.copy_(torch.maximum(tensor, other)),
+    "Min_double_t": lambda tensor, other, op: tensor.copy_(torch.minimum(tensor, other)),
+    "Multiply_double_t": lambda tensor, other, op: tensor.mul_(other),
+    "Plus_double_t": lambda tensor, other, op: tensor.add_(other),
+    "PruneBinding": _prune_binding_binary_,
+    "Set_double_t": lambda tensor, other, op: tensor.copy_(other),
+    "SetZeroEntry": _set_zero_entry_binary_,
+    "UpperBinding": None,
+    "isGreater": lambda tensor, other, op: tensor.copy_((tensor > other).to(dtype=tensor.dtype)),
+}
+
+
+def _apply_unary_fast_(tensor, op):
+    handler = _UNARY_HANDLERS.get(_op_name(op))
+    if handler is None:
+        return False
+    result = handler(tensor, op)
+    return result is not False
+
+
+def _apply_binary_fast_(tensor, other, op):
+    handler = _BINARY_HANDLERS.get(_op_name(op))
+    if handler is None:
+        return False
+    result = handler(tensor, other, op)
+    return result is not False
 
 
 class PythonVector(getTypeName('Vector')):
@@ -119,6 +270,8 @@ class TensorVector(PythonVector):
     #         self[i] = op.apply(self[i])
     @torch.no_grad()
     def applyUnary(self, op):
+        if _apply_unary_fast_(self.tensor, op):
+            return
         flat = self.tensor.view(-1)
         for i in range(flat.numel()):
             flat[i] = op.apply(flat[i].item())
@@ -129,6 +282,8 @@ class TensorVector(PythonVector):
     #         self[i] = op.apply(self[i], other[i])
     @torch.no_grad()
     def applyBinary(self, op, other):
+        if _apply_binary_fast_(self.tensor, other.tensor, op):
+            return
         flat_self = self.tensor.view(-1)
         flat_other = other.tensor.view(-1)
 
@@ -275,12 +430,16 @@ class TensorDictVector(PythonVector):
 
     @torch.no_grad()
     def applyUnary(self, op):
+        if _apply_unary_fast_(self.flat, op):
+            return
         flat = self.flat.view(-1)
         for i in range(flat.numel()):
             flat[i] = op.apply(flat[i].item())
 
     @torch.no_grad()
     def applyBinary(self, op, other):
+        if _apply_binary_fast_(self.flat, other.flat, op):
+            return
         flat_self = self.flat.view(-1)
         flat_other = other.flat.view(-1)
 
