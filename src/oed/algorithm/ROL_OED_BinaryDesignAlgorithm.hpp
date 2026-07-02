@@ -108,7 +108,7 @@ private:
     Real etol    = list.sublist("OED").sublist("Binary Design Algorithm").get("Tolerance",tol);
     bool rndws   = list.sublist("OED").sublist("Binary Design Algorithm").get("Rounded Warm Start",false);
     // Prepare path-following loop
-    Real tau(one/penscal), A(0), B(0), C(0), v(0), vtmp(0);
+    Real tau(one/penscal), A(0), B(0), C(0), v(0); //, vtmp(0);
     dwpen->update(*x,UpdateType::Trial);
     auto p  = dwpen->value(*x,tol);
     auto v0 = c;
