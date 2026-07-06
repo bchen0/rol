@@ -23,7 +23,8 @@ else:
 
     defaultScalarType = getDefaultScalarType()
 
-    supported_objects = {"Bounds",
+    supported_objects = {"BoundConstraint",
+                         "Bounds",
                          "Constraint",
                          "getCout",
                          "getParametersFromXmlFile",

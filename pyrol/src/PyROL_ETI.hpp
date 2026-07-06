@@ -12,6 +12,7 @@
 
 #include <PyROL_ETI_helper.hpp>
 
+#include <ROL_Bounds.hpp>
 #include <ROL_BoundConstraint_SimOpt.hpp>
 #include <ROL_Constraint.hpp>
 #include <ROL_DynamicConstraintCheck.hpp>
@@ -43,6 +44,8 @@
 //   template <> inline void PyROL::foo(CLASS_NAME a){}
 
 #define BINDER_ROL_CORE(SCALAR) \
+  BINDER_ETI_ABSTRACT(BoundConstraint<SCALAR>) \
+  BINDER_ETI_ABSTRACT(Bounds<SCALAR>) \
   BINDER_ETI_ABSTRACT(Constraint<SCALAR>) \
   BINDER_ETI_ABSTRACT(Objective<SCALAR>) \
   BINDER_ETI_ABSTRACT(Problem<SCALAR>) \
