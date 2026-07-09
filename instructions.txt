@@ -50,3 +50,15 @@ for f in "$PYROL_DIR/pyrol.so" "$PYROL_DIR/lib/"*.dylib; do
         fi
     fi
 done
+
+
+pkg=$(python3 - <<'PY'
+import site, pathlib
+for base in site.getsitepackages() + [site.getusersitepackages()]:
+    p = pathlib.Path(base) / "pyrol"
+    if p.exists():
+        print(p)
+        break
+PY
+)
+find "$pkg" \( -name '*.so' -o -name '*.dylib' \) -print0 | xargs -0 codesign --force --sign -
