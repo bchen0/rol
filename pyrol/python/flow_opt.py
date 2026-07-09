@@ -43,6 +43,22 @@ class _FlowOptObjective:
     def uses_parameter_control(self):
         return self._impl.uses_parameter_control
 
+    @property
+    def parameter(self):
+        return self.get_parameter()
+
+    def get_parameter(self):
+        return self._impl.get_parameter()
+
+    def set_parameter(self, parameter):
+        self._impl.set_parameter(np.asarray(parameter, dtype=float))
+
+    def getParameter(self):
+        return self.get_parameter()
+
+    def setParameter(self, parameter):
+        self.set_parameter(parameter)
+
     def value(self, z, tol=1e-8):
         return self._impl.value(z, tol)
 
@@ -83,3 +99,14 @@ class FilteredDarcyObjective(_FlowOptObjective):
     """Filtered reduced objective from flow-opt/axisymmetric/models/filteredDarcy."""
 
     _impl_type = _FilteredDarcyObjective
+
+
+class ParametrizedFilteredDarcyObjective(FilteredDarcyObjective):
+    """Filtered Darcy objective with parameters [inlet flow, permeability]."""
+
+    def __init__(self, xml_path, parameter=(1.0, 1.0)):
+        super().__init__(xml_path)
+        self.set_parameter(parameter)
+
+
+ParameterizedFilteredDarcyObjective = ParametrizedFilteredDarcyObjective

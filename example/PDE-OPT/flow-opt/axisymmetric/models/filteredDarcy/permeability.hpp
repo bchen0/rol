@@ -53,6 +53,10 @@ private:
     }
   }
 
+  Real permeabilityScale(const std::vector<Real> &param) const {
+    return (param.size() > 1 ? param[1] : static_cast<Real>(1));
+  }
+
 public:
   Permeability(ROL::ParameterList &list) {
     bool useDarcy = list.sublist("Problem").get("Use Darcy Flow",true);
@@ -69,9 +73,11 @@ public:
   void compute(ROL::Ptr<Intrepid::FieldContainer<Real>> &alpha,
          const ROL::Ptr<Intrepid::FieldContainer<Real>> &z,
          const ROL::Ptr<const Intrepid::FieldContainer<Real>> &pts,
-         const int deriv=0) const {
+         const int deriv=0,
+         const std::vector<Real> &param = std::vector<Real>()) const {
     const Real tol = std::sqrt(ROL::ROL_EPSILON<Real>());
     const Real zero(0), one(1);
+    const Real scale = permeabilityScale(param);
     const int c = pts->dimension(0);
     const int p = pts->dimension(1);
     const int d = pts->dimension(2);
@@ -82,9 +88,9 @@ public:
         for (int k = 0; k < d; ++k) norm += (*pts)(i,j,k)*(*pts)(i,j,k);
         weight = (std::sqrt(norm) <= dRadius_ + tol ? one : zero);
         // Compute spatially dependent viscosity
-        if (deriv==1)      (*alpha)(i,j) = weight * deriv1((*z)(i,j));
-        else if (deriv==2) (*alpha)(i,j) = weight * deriv2((*z)(i,j));
-        else               (*alpha)(i,j) = weight * value((*z)(i,j));
+        if (deriv==1)      (*alpha)(i,j) = scale * weight * deriv1((*z)(i,j));
+        else if (deriv==2) (*alpha)(i,j) = scale * weight * deriv2((*z)(i,j));
+        else               (*alpha)(i,j) = scale * weight * value((*z)(i,j));
       }
     }
   }

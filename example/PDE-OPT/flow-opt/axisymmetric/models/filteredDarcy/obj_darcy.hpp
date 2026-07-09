@@ -89,7 +89,7 @@ public:
         z_coeff_bdry = getBoundaryCoeff(*z_coeff, l, feCtrl_);
         fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
             for (int k = 0; k < d; ++k) {
@@ -136,7 +136,7 @@ public:
         z_coeff_bdry = getBoundaryCoeff(*z_coeff, l, feCtrl_);
         fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
             for (int k = 0; k < d; ++k) {
@@ -193,8 +193,8 @@ public:
         z_coeff_bdry = getBoundaryCoeff(*z_coeff, l, feCtrl_);
         fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
-        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
+        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1, QoI<Real>::getParameter());
         Real dalphaU(0), misfit(0);
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
@@ -252,7 +252,7 @@ public:
           z_coeff_bdry = getBoundaryCoeff(*z_coeff, l, feCtrl_);
           fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
           feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
-          perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
+          perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
           for (int k = 0; k < d; ++k) {
             intVal[k] = ROL::makePtr<Intrepid::FieldContainer<Real>>(numCellsSide);
             if ((k==0 && !onlyAxial_) || k==1) {
@@ -308,7 +308,7 @@ public:
         z_coeff_bdry = getBoundaryCoeff(*z_coeff, l, feCtrl_);
         fePrsBdry_[l]->evaluateGradient(valV_eval, v_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
             for (int k = 0; k < d; ++k) {
@@ -368,8 +368,8 @@ public:
         fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valV_eval, v_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
-        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
+        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1, QoI<Real>::getParameter());
         Real dalphaV(0), misfit(0), dmisfit(0);
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
@@ -428,7 +428,7 @@ public:
           intHess   = ROL::makePtr<Intrepid::FieldContainer<Real>>(numCellsSide, f);
           z_coeff_bdry = getBoundaryCoeff(*z_coeff, l, feCtrl_);
           feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
-          perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
+          perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
           for (int k = 0; k < d; ++k) {
             if ((k==0 && !onlyAxial_) || k==1) {
               for (int i = 0; i < numCellsSide; ++i) {
@@ -493,8 +493,8 @@ public:
         fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
         fePrsBdry_[l]->evaluateGradient(valV_eval, v_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
-        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
+        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1, QoI<Real>::getParameter());
         Real dalphaV(0), misfit(0), dmisfit(0);
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
@@ -564,9 +564,9 @@ public:
         fePrsBdry_[l]->evaluateGradient(valU_eval, u_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valZ_eval, z_coeff_bdry);
         feCtrlBdry_[l]->evaluateValue(valV_eval, v_coeff_bdry);
-        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0);
-        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1);
-        perm_->compute(ddalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 2);
+        perm_->compute(alpha, valZ_eval, fePrsBdry_[l]->cubPts(), 0, QoI<Real>::getParameter());
+        perm_->compute(dalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 1, QoI<Real>::getParameter());
+        perm_->compute(ddalpha, valZ_eval, fePrsBdry_[l]->cubPts(), 2, QoI<Real>::getParameter());
         Real dalphaV(0), misfit(0), dmisfit(0), ddalphaV(0);
         for (int i = 0; i < numCellsSide; ++i) {
           for (int j = 0; j < numCubPerSide; ++j) {
@@ -902,7 +902,7 @@ public:
     alpha      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
     fePrs_->evaluateGradient(gradU, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -939,7 +939,7 @@ public:
     alpha      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
     fePrs_->evaluateGradient(gradU, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -977,8 +977,8 @@ public:
     deriv      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
     fePrs_->evaluateGradient(gradU, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
-    perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
+    perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -1018,7 +1018,7 @@ public:
       alpha      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
       fePrs_->evaluateGradient(gradU, u_coeff);
       feCtrl_->evaluateValue(valZ, z_coeff);
-      perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
+      perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
 
       for (int i = 0; i < c; ++i) {
         for (int j = 0; j < p; ++j) {
@@ -1057,7 +1057,7 @@ public:
     alpha      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
     fePrs_->evaluateGradient(gradV, v_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -1097,8 +1097,8 @@ public:
     fePrs_->evaluateGradient(gradU, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
     feCtrl_->evaluateValue(valV, v_coeff);
-    perm_->compute( alpha, valZ, fePrs_->cubPts(), 0);
-    perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1);
+    perm_->compute( alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
+    perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -1134,7 +1134,7 @@ public:
       valZ       = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
       alpha      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
       feCtrl_->evaluateValue(valZ, z_coeff);
-      perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
+      perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
 
       for (int i = 0; i < c; ++i) {
         for (int j = 0; j < p; ++j) {
@@ -1178,8 +1178,8 @@ public:
     fePrs_->evaluateGradient(gradU, u_coeff);
     fePrs_->evaluateGradient(gradV, v_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
-    perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
+    perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -1222,9 +1222,9 @@ public:
     fePrs_->evaluateGradient(gradU, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
     feCtrl_->evaluateValue(valV, v_coeff);
-    perm_->compute(  alpha, valZ, fePrs_->cubPts(), 0);
-    perm_->compute( dalpha, valZ, fePrs_->cubPts(), 1);
-    perm_->compute(ddalpha, valZ, fePrs_->cubPts(), 2);
+    perm_->compute(  alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
+    perm_->compute( dalpha, valZ, fePrs_->cubPts(), 1, QoI<Real>::getParameter());
+    perm_->compute(ddalpha, valZ, fePrs_->cubPts(), 2, QoI<Real>::getParameter());
 
     for (int i = 0; i < c; ++i) {
       for (int j = 0; j < p; ++j) {
@@ -1264,7 +1264,7 @@ public:
       dalpha     = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
       fePrs_->evaluateGradient(gradU, u_coeff);
       feCtrl_->evaluateValue(valZ, z_coeff);
-      perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1);
+      perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1, QoI<Real>::getParameter());
 
       for (int i = 0; i < c; ++i) {
         for (int j = 0; j < p; ++j) {
@@ -1307,7 +1307,7 @@ public:
       alpha      = ROL::makePtr<Intrepid::FieldContainer<Real>>(c,p);
       fePrs_->evaluateGradient(gradV, v_coeff);
       feCtrl_->evaluateValue(valZ, z_coeff);
-      perm_->compute(alpha, valZ, fePrs_->cubPts(), 0);
+      perm_->compute(alpha, valZ, fePrs_->cubPts(), 0, QoI<Real>::getParameter());
 
       for (int i = 0; i < c; ++i) {
         for (int j = 0; j < p; ++j) {
@@ -1351,7 +1351,7 @@ public:
       fePrs_->evaluateGradient(gradU, u_coeff);
       feCtrl_->evaluateValue(valZ, z_coeff);
       feCtrl_->evaluateValue(valV, v_coeff);
-      perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1);
+      perm_->compute(dalpha, valZ, fePrs_->cubPts(), 1, QoI<Real>::getParameter());
 
       for (int i = 0; i < c; ++i) {
         for (int j = 0; j < p; ++j) {

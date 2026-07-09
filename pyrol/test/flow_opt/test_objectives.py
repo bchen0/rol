@@ -13,6 +13,7 @@ from pyrol.flow_opt import (
     BrinkmanObjective,
     DarcyObjective,
     FilteredDarcyObjective,
+    ParametrizedFilteredDarcyObjective,
 )
 
 
@@ -237,6 +238,22 @@ class TestFlowOptObjectives(unittest.TestCase):
                     np.testing.assert_allclose(
                         reference["hess_vec_dot"], hess_dot, rtol=1e-9, atol=1e-7
                     )
+
+    def test_parametrized_filtered_darcy_parameter_round_trip(self):
+        source_xml = HERE / "models" / "filteredDarcy" / "input.xml"
+        xml_path = HERE / "models" / "filteredDarcy" / "input-smoke.xml"
+        write_smoke_xml(source_xml, xml_path)
+
+        mesh_path = mesh_path_for_xml(xml_path)
+        if not mesh_path.exists():
+            self.skipTest(f"missing generated axisymmetric mesh file: {mesh_path}")
+
+        objective = ParametrizedFilteredDarcyObjective(xml_path)
+        np.testing.assert_allclose(objective.getParameter(), [1.0, 1.0])
+
+        objective.setParameter([1.25, 0.75])
+        np.testing.assert_allclose(objective.parameter, [1.25, 0.75])
+        self.assertTrue(math.isfinite(objective.value(objective.default_control())))
 
 
 if __name__ == "__main__":

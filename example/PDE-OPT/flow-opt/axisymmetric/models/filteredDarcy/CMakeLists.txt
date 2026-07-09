@@ -17,6 +17,12 @@ IF(${PROJECT_NAME}_ENABLE_Intrepid AND
     ADD_DIR_TO_NAME
   )
 
+  ROL_ADD_EXECUTABLE(
+    example_02
+    SOURCES example_02.cpp
+    ADD_DIR_TO_NAME
+  )
+
   ROL_COPY_FILES_TO_BINARY_DIR(
     ProjectAxisymmetricFilteredDarcyDataCopy
     SOURCE_FILES

@@ -68,6 +68,11 @@ private:
   ROL::Ptr<Permeability<Real>> perm_;
   ROL::Ptr<FieldUtils::FieldInfo> fieldInfo_, fieldInfoCtrl_;
 
+  Real inletFlowRateScale(void) const {
+    const std::vector<Real> param = PDE<Real>::getParameter();
+    return (param.size() > 0 ? param[0] : static_cast<Real>(1));
+  }
+
   void multiplyByRadius(ROL::Ptr<Intrepid::FieldContainer<Real>> &input,
                         const ROL::Ptr<const Intrepid::FieldContainer<Real>> &cubPts,
                         bool isField, bool useReciprocal = false) const {
@@ -186,7 +191,7 @@ public:
     alpha   = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, p);
     fePrs_->evaluateGradient(gradP, u_coeff);
     feCtrl_->evaluateValue(valCtrl, z_coeff);
-    perm_->compute(alpha, valCtrl, fePrs_->cubPts(), 0);
+    perm_->compute(alpha, valCtrl, fePrs_->cubPts(), 0, PDE<Real>::getParameter());
     Intrepid::FunctionSpaceTools::scalarMultiplyDataData<Real>(*AgradP,*alpha,*gradP);
     /*** Evaluate weak form of the residual. ***/
     multiplyByRadius(AgradP,fePrs_->cubPts(),false);
@@ -209,7 +214,7 @@ public:
               ROL::Ptr<Intrepid::FieldContainer<Real>> nRes, nVal;
               nRes = ROL::makePtr<Intrepid::FieldContainer<Real>>(numCellsSide, f);
               nVal = ROL::makePtr<Intrepid::FieldContainer<Real>>(numCellsSide, numCubPerSide);
-              nVal->initialize(-inVelocity_);
+              nVal->initialize(-inletFlowRateScale()*inVelocity_);
               multiplyByRadius(nVal,fePrsBdry_[i][j]->cubPts(),false);
               Intrepid::FunctionSpaceTools::integrate<Real>(*nRes,
                                                             *nVal,
@@ -261,7 +266,7 @@ public:
     alpha    = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, p);
     alphaPhi = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, f, p, d);
     feCtrl_->evaluateValue(valCtrl, z_coeff);
-    perm_->compute(alpha, valCtrl, fePrs_->cubPts(), 0);
+    perm_->compute(alpha, valCtrl, fePrs_->cubPts(), 0, PDE<Real>::getParameter());
     // Multiply velocity with alpha
     Intrepid::FunctionSpaceTools::scalarMultiplyDataField<Real>(*alphaPhi, *alpha, *fePrs_->gradN());
     /*** Evaluate weak form of the Jacobian. ***/
@@ -319,7 +324,7 @@ public:
     gradPgradN = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, f, p);
     fePrs_->evaluateGradient(gradP, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 1);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 1, PDE<Real>::getParameter());
     Intrepid::FunctionSpaceTools::scalarMultiplyDataField<Real>(*alphaN,*alpha,*feCtrl_->N());
     Intrepid::FunctionSpaceTools::dotMultiplyDataField<Real>(*gradPgradN,*gradP,*fePrs_->gradNdetJ());
     /*** Evaluate weak form of the residual. ***/
@@ -416,7 +421,7 @@ public:
     alphaL = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, fc, p, d);
     fePrs_->evaluateGradient(gradL, l0_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 1);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 1, PDE<Real>::getParameter());
     /*** Evaluate weak form of the Hessian. ***/
     // Multiply velocity with alpha
     for (int j = 0; j < c; ++j) {
@@ -490,7 +495,7 @@ public:
     alphaL = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, fc, p, d);
     fePrs_->evaluateGradient(gradL, l0_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 1);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 1, PDE<Real>::getParameter());
     /*** Evaluate weak form of the Hessian. ***/
     for (int j = 0; j < c; ++j) {
       for (int k = 0; k < fc; ++k) {
@@ -556,7 +561,7 @@ public:
     fePrs_->evaluateGradient(gradL, l0_coeff);
     fePrs_->evaluateGradient(gradU, u_coeff);
     feCtrl_->evaluateValue(valZ, z_coeff);
-    perm_->compute(alpha, valZ, fePrs_->cubPts(), 2);
+    perm_->compute(alpha, valZ, fePrs_->cubPts(), 2, PDE<Real>::getParameter());
     // Multiply velocity with alpha
     Real dot(0);
     for (int i = 0; i < c; ++i) {
@@ -722,7 +727,7 @@ public:
     alpha   = ROL::makePtr<Intrepid::FieldContainer<Real>>(c, p);
     fePrs_->evaluateGradient(gradP, u_coeff);
     feCtrl_->evaluateValue(valCtrl, z_coeff);
-    perm_->compute(alpha, valCtrl, fePrs_->cubPts(), 0);
+    perm_->compute(alpha, valCtrl, fePrs_->cubPts(), 0, PDE<Real>::getParameter());
     Intrepid::FunctionSpaceTools::scalarMultiplyDataData<Real>(*AgradP,*alpha,*gradP);
     // Print to velocity file
     std::stringstream nameVel;

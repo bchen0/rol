@@ -145,6 +145,30 @@ public:
   std::size_t parameterSize() const { return parameterSize_; }
   std::size_t localSize() const { return localFieldSize_ + parameterSize_; }
   bool usesParameterControl() const { return useParamVar_; }
+  py::array_t<RealT> getParameter() const {
+    return makeArray(objectiveParameter_);
+  }
+
+  void setParameter(
+      const py::array_t<RealT, py::array::c_style | py::array::forcecast>
+          &param) {
+    py::buffer_info info = param.request();
+    if (info.ndim != 1) {
+      throw std::invalid_argument("Expected a one-dimensional NumPy array.");
+    }
+    const RealT *values = static_cast<const RealT *>(info.ptr);
+    if (info.shape[0] == 0) {
+      objectiveParameter_.clear();
+    }
+    else {
+      const std::size_t size = static_cast<std::size_t>(info.shape[0]);
+      objectiveParameter_.assign(values, values + size);
+    }
+    if (objective_ == ROL::nullPtr) {
+      throw std::runtime_error("Flow-opt objective was not fully constructed.");
+    }
+    objective_->setParameter(objectiveParameter_);
+  }
 
   RealT value(const py::array_t<RealT, py::array::c_style |
                                       py::array::forcecast> &z,
@@ -225,6 +249,9 @@ protected:
 
     if (zp_ == ROL::nullPtr || objective_ == ROL::nullPtr) {
       throw std::runtime_error("Flow-opt objective was not fully constructed.");
+    }
+    if (!objectiveParameter_.empty()) {
+      objective_->setParameter(objectiveParameter_);
     }
     v_ = zp_->clone();
     g_ = zp_->dual().clone();
@@ -362,6 +389,7 @@ protected:
   std::size_t localFieldSize_;
   std::size_t globalFieldSize_;
   std::size_t parameterSize_;
+  std::vector<RealT> objectiveParameter_;
 
   ROL::Ptr<const Teuchos::Comm<int>> comm_;
   ROL::Ptr<ROL::ParameterList> parlist_;
@@ -408,6 +436,24 @@ template <class ClassT> inline void bindFlowOptMethods(py::class_<ClassT> &cls) 
       .def_property_readonly(
           "uses_parameter_control",
           [](const ClassT &self) { return self.usesParameterControl(); })
+      .def("get_parameter",
+           [](const ClassT &self) { return self.getParameter(); })
+      .def("set_parameter",
+           [](ClassT &self,
+              const py::array_t<RealT, py::array::c_style |
+                                           py::array::forcecast> &param) {
+             self.setParameter(param);
+           },
+           py::arg("parameter"))
+      .def("getParameter",
+           [](const ClassT &self) { return self.getParameter(); })
+      .def("setParameter",
+           [](ClassT &self,
+              const py::array_t<RealT, py::array::c_style |
+                                           py::array::forcecast> &param) {
+             self.setParameter(param);
+           },
+           py::arg("parameter"))
       .def("value",
            [](ClassT &self,
               const py::array_t<RealT, py::array::c_style |
