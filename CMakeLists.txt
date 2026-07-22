@@ -20,6 +20,9 @@ if( STANDALONE_ROL )
   set(CMAKE_CXX_EXTENSIONS OFF)
   set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
+  include(GNUInstallDirs)
+  include(CMakePackageConfigHelpers)
+
   find_package(BLAS REQUIRED)
   find_package(LAPACK REQUIRED)
 
@@ -115,15 +118,26 @@ if( STANDALONE_ROL )
     endforeach()
   endforeach()
 
-  target_include_directories(rol PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
-                                        ${ROL_COMPATIBILITY_INCLUDES}
-                                        ${ROL_CORE_INCLUDES})
+  target_include_directories(rol
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+      $<BUILD_INTERFACE:${ROL_COMPATIBILITY_INCLUDES}>
+      $<BUILD_INTERFACE:${ROL_CORE_INCLUDES}>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+  )
 
-  target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
-                                    pugixml
-                                    Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
+  target_link_libraries(rol
+    PRIVATE
+      ${BLAS_LIBRARIES}
+      ${LAPACK_LIBRARIES}
+      pugixml
+      Teuchos_BLAS
+      Teuchos_CompObject
+      Teuchos_TestForException
+  )
 
   add_library(rol::rol ALIAS rol)
+  add_library(ROL::rol ALIAS rol)
 
   option(ENABLE_TESTS OFF)
   option(ENABLE_EXAMPLES OFF)
@@ -179,17 +193,46 @@ if( STANDALONE_ROL )
   endforeach()
   
   install(
-		TARGETS rol   
-		#TARGETS Teuchos_TestForException  
-    LIBRARY DESTINATION lib 
-    #ARCHIVE DESTINATION lib 
+    TARGETS rol
+    EXPORT ROLTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  )
+
+  install(
+    EXPORT ROLTargets
+    FILE ROLTargets.cmake
+    NAMESPACE ROL::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ROL
+  )
+
+  configure_package_config_file(
+    "${PROJECT_SOURCE_DIR}/cmake/ROLConfig.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/ROLConfig.cmake"
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ROL
+    PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
+  )
+
+  write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/ROLConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+  )
+
+  install(
+    FILES
+      "${CMAKE_CURRENT_BINARY_DIR}/ROLConfig.cmake"
+      "${CMAKE_CURRENT_BINARY_DIR}/ROLConfigVersion.cmake"
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ROL
   )
 
   # Install all headers into one flat include directory
   foreach(hdr IN LISTS PROJECT_HEADERS)
-      install(FILES "${hdr}" DESTINATION include)
+      install(FILES "${hdr}" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
   endforeach()
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ROL_config.h" DESTINATION include)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/ROL_config.h" DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 else() # Build with Trilinos
   include(cmake/TrilinosROL.cmake)
 endif()
