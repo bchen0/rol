@@ -55,14 +55,34 @@ if( STANDALONE_ROL )
     message(STATUS "Detected Fortran name mangling: ${F77_BLAS_MANGLE}")
   endif()
 
-  # Add pugixml for XML parameter file support
+  # Add pugixml for XML parameter file support.
+  # Prefer an installed CMake package so installed ROLConfig.cmake can
+  # reproduce the same public dependency for downstream consumers.  Fall back
+  # to FetchContent for standalone source/CI builds where pugixml is not
+  # preinstalled.
   include(FetchContent)
-  FetchContent_Declare(
-    pugixml
-    GIT_REPOSITORY https://github.com/zeux/pugixml.git
-    GIT_TAG        v1.14
-  )
-  FetchContent_MakeAvailable(pugixml)
+  find_package(pugixml CONFIG QUIET)
+
+  if(NOT pugixml_FOUND)
+    FetchContent_Declare(
+      pugixml
+      GIT_REPOSITORY https://github.com/zeux/pugixml.git
+      GIT_TAG        v1.14
+    )
+    FetchContent_MakeAvailable(pugixml)
+  endif()
+
+  if(TARGET pugixml::pugixml)
+    set(ROL_PUGIXML_TARGET pugixml::pugixml)
+  elseif(TARGET pugixml)
+    set(ROL_PUGIXML_TARGET pugixml)
+  elseif(TARGET pugixml-static)
+    set(ROL_PUGIXML_TARGET pugixml-static)
+  elseif(TARGET pugixml::static)
+    set(ROL_PUGIXML_TARGET pugixml::static)
+  else()
+    message(FATAL_ERROR "Could not find or create a pugixml CMake target")
+  endif()
 
   include(ROLUtils)
 
@@ -135,7 +155,7 @@ if( STANDALONE_ROL )
   )
 
   target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
-                                    pugixml)
+                                    ${ROL_PUGIXML_TARGET})
   target_link_libraries(rol PRIVATE Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
 
   add_library(rol::rol ALIAS rol)

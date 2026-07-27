@@ -1,5 +1,8 @@
 @PACKAGE_INIT@
 
+include(CMakeFindDependencyMacro)
+find_dependency(pugixml CONFIG)
+
 include("${CMAKE_CURRENT_LIST_DIR}/ROLTargets.cmake")
 
 set(ROL_FOUND TRUE)
