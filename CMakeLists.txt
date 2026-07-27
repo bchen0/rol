@@ -135,8 +135,8 @@ if( STANDALONE_ROL )
   )
 
   target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
-                                    pugixml
-                                    Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
+                                    pugixml)
+  target_link_libraries(rol PRIVATE Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
 
   add_library(rol::rol ALIAS rol)
   add_library(ROL::rol ALIAS rol)
