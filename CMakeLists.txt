@@ -123,26 +123,20 @@ if( STANDALONE_ROL )
       ${ROL_COMPATIBILITY_INCLUDES}
       ${ROL_CORE_INCLUDES})
 
-  set(ROL_BUILD_INTERFACE_INCLUDE_GENEX)
+  set(ROL_BUILD_INTERFACE_INCLUDE_GENERATOR_EXPRESSIONS)
   foreach(dir IN LISTS ROL_BUILD_INTERFACE_INCLUDES)
-    list(APPEND ROL_BUILD_INTERFACE_INCLUDE_GENEX "$<BUILD_INTERFACE:${dir}>")
+    list(APPEND ROL_BUILD_INTERFACE_INCLUDE_GENERATOR_EXPRESSIONS "$<BUILD_INTERFACE:${dir}>")
   endforeach()
 
   target_include_directories(rol
     PUBLIC
-      ${ROL_BUILD_INTERFACE_INCLUDE_GENEX}
+      ${ROL_BUILD_INTERFACE_INCLUDE_GENERATOR_EXPRESSIONS}
       $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   )
 
-  target_link_libraries(rol
-    PRIVATE
-      ${BLAS_LIBRARIES}
-      ${LAPACK_LIBRARIES}
-      pugixml
-      Teuchos_BLAS
-      Teuchos_CompObject
-      Teuchos_TestForException
-  )
+  target_link_libraries(rol PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}
+                                    pugixml
+                                    Teuchos_BLAS Teuchos_CompObject Teuchos_TestForException)
 
   add_library(rol::rol ALIAS rol)
   add_library(ROL::rol ALIAS rol)
