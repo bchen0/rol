@@ -382,10 +382,7 @@ private:
   }
 
   void buildObjective() {
-    const int partitionType =
-      parlist_->sublist("Geometry").get("Partition type", 1);
-    const int meshPartitions =
-      (partitionType == 3 && commSize_ > 1) ? commSize_ : 0;
+    const int meshPartitions = commSize_ > 1 ? commSize_ : 0;
     outStream_ = ROL::makeStreamPtr(std::cout, false);
 
     meshMgr_ = ROL::makePtr<MeshReader<RealT>>(*parlist_, meshPartitions);
