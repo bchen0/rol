@@ -370,10 +370,9 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
 
   EExitStatus statusFlag;
   bool isSubproblemConverged = false;
-  Real penaltyParameter;
   bool isForcedUpdate = false;
-
-  Real theta;
+  const Real oem2(1e-2);
+  Real penaltyParameter, reduction, theta;
 
   // ========================================================================
   // STEP 3: Run algorithm
@@ -460,21 +459,14 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
       else {
         theta              = std::min(one/penaltyParameter,theta_);
         dualTolerances[i] *= std::pow(theta,betat_);
-        // dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_); // ROL convention
       }
       if (alobj->getScaling(i)*dualResiduals[i] <= nu*std::pow(penaltyParameter,gamma)) {
-        alobj->updateMultiplier(x,tol,i);
-        // outStream << "multiplier update" << std::endl;
+        state_->snorm += alobj->updateMultiplier(x,tol,i);
       }
     }
-    if (isUpdated_) {
-      epsilon_ = 0.9*epsilon_;
-      delta_   = 0.9*delta_;
-    }
-    else {
-      epsilon_ = 0.25*epsilon_;
-      delta_   = 0.25*delta_;
-    }
+    reduction = isUpdated_ ? Real(0.9) : Real(0.25);
+    epsilon_ = std::max(oem2*outerOptTolerance_, reduction*epsilon_);
+    delta_   = std::max(oem2*outerFeasTolerance_,reduction*delta_);
 
     alobj->reset();
 
