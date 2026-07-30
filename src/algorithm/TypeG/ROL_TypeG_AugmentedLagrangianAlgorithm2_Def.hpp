@@ -379,7 +379,8 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   EExitStatus statusFlag;
   bool isSubproblemConverged = false;
   bool isForcedUpdate = false;
-  Real penaltyParameter, reduction, theta;
+  bool tolerancesUpdated = false;
+  Real penaltyParameter, reduction, theta, oldEpsilon, oldDelta;
 
   // ========================================================================
   // STEP 3: Run algorithm
@@ -393,7 +394,7 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     // applying the step-tolerance stopping criterion.
     if (!continueAlgorithm
         && state_->statusFlag == EXITSTATUS_STEPTOL
-        && isUpdated_
+        && (isUpdated_ || tolerancesUpdated)
         && state_->iter < outerIterationLimit_) {
       continueAlgorithm = true;
       state_->statusFlag = EXITSTATUS_LAST;
@@ -486,9 +487,13 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
         state_->snorm += alobj->updateMultiplier(x,tol,i);
       }
     }
+
     reduction = isUpdated_ ? Real(0.9) : Real(0.25);
-    epsilon_ = std::max(subproblemTolFactor_*outerOptTolerance_, reduction*epsilon_);
-    delta_   = std::max(subproblemTolFactor_*outerFeasTolerance_,reduction*delta_);
+    oldEpsilon = epsilon_;
+    oldDelta   = delta_;
+    epsilon_   = std::max(subproblemTolFactor_*outerOptTolerance_, reduction*epsilon_);
+    delta_     = std::max(subproblemTolFactor_*outerFeasTolerance_,reduction*delta_);
+    tolerancesUpdated = epsilon_ < oldEpsilon || delta_ < oldDelta;
 
     alobj->reset();
 
