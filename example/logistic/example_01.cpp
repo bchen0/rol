@@ -121,10 +121,20 @@ public:
 
 };
 
-
+bool file_exists_and_nonempty(const std::string &filename) {
+  std::ifstream file(filename.c_str(), std::ios::binary | std::ios::ate);
+  return file.good() && file.tellg() > 0;
+}
 
 int main(int argc, char *argv[]) {
   ROL::GlobalMPISession mpiSession(&argc, &argv);
+
+  int rank  = ROL::GlobalMPISession::getRank();
+  int nproc = ROL::GlobalMPISession::getNProc();
+  if (nproc > 1) {
+    std::cout << "Warning: This example was launched with " << nproc
+    << "MPI ranks, but it is not parallelized." << "\n";
+  }
 
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
   int iprint     = argc - 1;
@@ -145,25 +155,37 @@ int main(int argc, char *argv[]) {
     std::string filename = "input.xml";
     auto parlist = ROL::getParametersFromXmlFile(filename);
 
-    // Generate data, then save down to a text file.
-    int nInstances(1000);
+    // Generate data, then save down to a text file (if it does not already exist)
+    int nInstances(10000);
     std::string dataFileName("data.txt");
     std::vector<RealT> slopes = {-0.1, 1.5, 0.1, 0.05, -1.9, -0.01};
     int nVars = slopes.size() - 1;
 
-    LogisticDataGenerator<RealT> dataGenerator{};
-    dataGenerator.generate_and_save_data(
-      nInstances,
-      slopes,
-      dataFileName,
-      *outStream
-    );
+    if (nproc == 1 || rank == 0) {
+      if (!file_exists_and_nonempty(dataFileName)) {
+        // Generate data, then save down to a text file.
+        *outStream << "Generating data file: " << dataFileName << "\n";
+        LogisticDataGenerator<RealT> dataGenerator{};
+        dataGenerator.generate_and_save_data(
+          nInstances,
+          slopes,
+          dataFileName,
+          *outStream
+        );
+      }
+      else {
+        *outStream << "Data file: " << dataFileName << " exists. Skipping data generation." << "\n";
+      }
+    }
+    ROL::GlobalMPISession::barrier();
 
     // Read in text file and initialize data.
     std::vector<RealT> b;
     std::vector<std::vector<RealT>> A; 
-    std::ifstream file;
-    file.open(dataFileName);
+    std::ifstream file(dataFileName);
+    if (!file.is_open()) {
+      throw std::logic_error("Could not open data file: " + dataFileName);
+    }
 
     A.resize(nInstances);
     b.resize(nInstances,0.0);

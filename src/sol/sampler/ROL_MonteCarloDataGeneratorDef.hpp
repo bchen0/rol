@@ -87,9 +87,9 @@ Real MonteCarloDataGenerator<Real>::computeError( std::vector<Real> &vals ) {
     Real mean   = zero;
     SampleGenerator<Real>::sumAll(&mymean,&mean,1);
 
-    Real myvar  = (sum_val2_ - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     Real var    = zero;
-    SampleGenerator<Real>::sumAll(&myvar,&var,1);
+    SampleGenerator<Real>::sumAll(&sum_val2_,&var,1);
+    var = (var - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     // Return Monte Carlo error
     vals.clear();
     err = std::sqrt(var/static_cast<Real>(nSamp_));
@@ -119,9 +119,9 @@ Real MonteCarloDataGenerator<Real>::computeError( std::vector<Ptr<Vector<Real>>>
     Real mean   = zero;
     SampleGenerator<Real>::sumAll(&mymean,&mean,1);
 
-    Real myvar  = (sum_ng2_ - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     Real var    = zero;
-    SampleGenerator<Real>::sumAll(&myvar,&var,1);
+    SampleGenerator<Real>::sumAll(&sum_ng2_,&var,1);
+    var = (var - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     // Return Monte Carlo error
     vals.clear();
     err = std::sqrt(var/static_cast<Real>(nSamp_));
@@ -176,7 +176,6 @@ void MonteCarloDataGenerator<Real>::refine(void) {
       pts.push_back(SampleGenerator<Real>::getMyPoint(i));
     std::vector<std::vector<Real>> pts_new = sample(nNewSamp_);
     pts.insert(pts.end(),pts_new.begin(),pts_new.end());
-    nSamp_ = std::min(nSamp_+nNewSamp_, nSampTotal_);
     std::vector<Real> wts(pts.size(),static_cast<Real>(1)/static_cast<Real>(nSamp_));
     SampleGenerator<Real>::refine();
     SampleGenerator<Real>::setPoints(pts);

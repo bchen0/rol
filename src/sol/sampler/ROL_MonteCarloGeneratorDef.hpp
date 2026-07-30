@@ -220,9 +220,9 @@ Real MonteCarloGenerator<Real>::computeError( std::vector<Real> &vals ) {
     Real mean   = zero;
     SampleGenerator<Real>::sumAll(&mymean,&mean,1);
 
-    Real myvar  = (sum_val2_ - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     Real var    = zero;
-    SampleGenerator<Real>::sumAll(&myvar,&var,1);
+    SampleGenerator<Real>::sumAll(&sum_val2_,&var,1);
+    var = (var - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     // Return Monte Carlo error
     vals.clear();
     err = std::sqrt(var/static_cast<Real>(nSamp_));
@@ -252,9 +252,9 @@ Real MonteCarloGenerator<Real>::computeError( std::vector<Ptr<Vector<Real>>> &va
     Real mean   = zero;
     SampleGenerator<Real>::sumAll(&mymean,&mean,1);
 
-    Real myvar  = (sum_ng2_ - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     Real var    = zero;
-    SampleGenerator<Real>::sumAll(&myvar,&var,1);
+    SampleGenerator<Real>::sumAll(&sum_ng2_,&var,1);
+    var = (var - static_cast<Real>(nSamp_)*mean*mean)/(static_cast<Real>(nSamp_)-one);
     // Return Monte Carlo error
     vals.clear();
     err = std::sqrt(var/static_cast<Real>(nSamp_));

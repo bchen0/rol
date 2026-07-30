@@ -112,9 +112,20 @@ public:
   }
 };
 
+bool file_exists_and_nonempty(const std::string &filename) {
+  std::ifstream file(filename.c_str(), std::ios::binary | std::ios::ate);
+  return file.good() && file.tellg() > 0;
+}
 
 int main(int argc, char *argv[]) {
   ROL::GlobalMPISession mpiSession(&argc, &argv);
+
+  int rank  = ROL::GlobalMPISession::getRank();
+  int nproc = ROL::GlobalMPISession::getNProc();
+  if (nproc > 1) {
+    std::cout << "Warning: This example was launched with " << nproc
+    << "MPI ranks, but it is not parallelized." << "\n";
+  }
 
   // This little trick lets us print to std::cout only if a (dummy) command-line argument is provided.
   int iprint     = argc - 1;
@@ -143,22 +154,33 @@ int main(int argc, char *argv[]) {
     parlist->sublist("Status Test").set("Step Tolerance",1e-12);
     parlist->sublist("Status Test").set("Iteration Limit", 10000);
     parlist->sublist("Step").sublist("Trust Region").set("Subproblem Solver", "SPG");  
-    
-    // Generate data, then save down to a text file.
-    int nInstances(1000);
+
+    // Generate data, then save down to a text file (if it does not already exist)
+    int nInstances(10000);
+
     std::string dataFileName("data.txt");
     std::vector<RealT> slopes = {-0.1, 1.5, 0.1, 0.05, -1.9, -0.01};
     int nVars = slopes.size() - 1;
     int dim = nVars + 1; // The optimization variable has size nVars + 1 because of the intercept term.
 
-    LogisticDataGenerator<RealT> dataGenerator{};
-    dataGenerator.generate_and_save_data(
-      nInstances,
-      slopes,
-      dataFileName,
-      *outStream
-    );
-
+    if (nproc == 1 || rank == 0) {
+      if (!file_exists_and_nonempty(dataFileName)) {
+        // Generate data, then save down to a text file.
+        *outStream << "Generating data file: " << dataFileName << "\n";
+        LogisticDataGenerator<RealT> dataGenerator{};
+        dataGenerator.generate_and_save_data(
+          nInstances,
+          slopes,
+          dataFileName,
+          *outStream
+        );
+      }
+      else {
+        *outStream << "Data file: " << dataFileName << " exists. Skipping data generation." << "\n";
+      }
+    }
+    ROL::GlobalMPISession::barrier();
+    
     // set up objective
     ROL::Ptr<ParametrizedLogisticObjective<RealT>>  obj = ROL::makePtr<ParametrizedLogisticObjective<RealT>>();
     ROL::Ptr<ROL::l1Objective<RealT>> nobj; 

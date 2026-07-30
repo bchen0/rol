@@ -247,7 +247,15 @@ int main(int argc, char *argv[]) {
       y.resize(nfactors,0.0);
       d.resize(nVars,0.0);
       std::ifstream file;
-      file.open("lasso-data.txt");
+
+      file.exceptions(std::ifstream::failbit);
+      try {
+        file.open("lasso-data.txt");
+      } catch (const std::ifstream::failure& e) {
+        std::cerr << "Error: File does not exist! The data for this example is the California "
+        << "Housing prices dataset, which can be downloaded from https://lib.stat.cmu.edu/datasets/"
+        << "(houses.zip)" << e.what() << "\n";
+      }
       RealT medVal(0), medInc(0), medAge(0), totRoom(0), totBed(0), pop(0), house(0), lon(0), lat(0);
       for (int i = 0; i < nfactors; ++i) {
         file >> medVal;
