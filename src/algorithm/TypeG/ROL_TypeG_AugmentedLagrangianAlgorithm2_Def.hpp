@@ -52,12 +52,13 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
   tau0_   = sublist.get("Initial Dual Feasibility Tolerance",       one);
 
   // Subproblem information
-  useDefaultInitTol_  = sublist.get("Use Default Initial Subproblem Tolerances", false);
-  epsilon_            = sublist.get("Initial Optimality Tolerance",              1e-4);
-  delta_              = sublist.get("Initial Feasibility Tolerance",             1e-4);
-  maxit_              = sublist.get("Subproblem Iteration Limit",                1000);
-  bool print          = sublist.get("Print Intermediate Optimization History",   false);
-  subStep_            = sublist.get("Subproblem Step Type",             "Trust Region");
+  useDefaultInitTol_   = sublist.get("Use Default Initial Subproblem Tolerances", false);
+  epsilon_             = sublist.get("Initial Optimality Tolerance",              1e-4);
+  delta_               = sublist.get("Initial Feasibility Tolerance",             1e-4);
+  subproblemTolFactor_ = sublist.get("Subproblem Tolerance Lower Bound Factor",   1e-2);
+  maxit_               = sublist.get("Subproblem Iteration Limit",                1000);
+  bool print           = sublist.get("Print Intermediate Optimization History",   false);
+  subStep_             = sublist.get("Subproblem Step Type",             "Trust Region");
   list_.sublist("Step").set("Type",subStep_);
   list_.sublist("Status Test").set("Iteration Limit", maxit_);
   list_.sublist("Status Test").set("Use Relative Tolerances",false);
@@ -99,8 +100,13 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
     outStream << "Warning: \"Use Relative Tolerances\" parameter is unsupported!" << std::endl;
     useRelTol_ = false;
   }
+  if (subproblemTolFactor_ >= Real(1)) {
+    outStream << "Warning: \"Subproblem Tolerance Lower Bound Factor\" is greater than or equal to 1! "
+              << "The lower bounds will not be tighter than the corresponding outer tolerances."
+              << std::endl;
+  }
 
-  const Real one(1), TOL(1.e-2);
+  const Real one(1);
   Real tol = std::sqrt(ROL_EPSILON<Real>());
   // > TypeG::Algorithm<Real>::initialize(x,g,l,c);
   if (state_->iterateVec == nullPtr) {
@@ -246,8 +252,8 @@ void AugmentedLagrangianAlgorithm2<Real>::initialize( Vector<Real>              
     for (unsigned i = 0; i < numberPenalties; ++i) 
       temp += alobj.getPenaltyParameter(i);
     temp = std::min(minPenaltyReciprocal_,1./temp);
-    epsilon_ = std::max(TOL*outerOptTolerance_, epsilon_*std::pow(temp,optDecreaseExponent_));
-    delta_   = std::max(TOL*outerFeasTolerance_,delta_  *std::pow(temp,optDecreaseExponent_));
+    epsilon_ = std::max(subproblemTolFactor_*outerOptTolerance_, epsilon_*std::pow(temp,optDecreaseExponent_));
+    delta_   = std::max(subproblemTolFactor_*outerFeasTolerance_,  delta_*std::pow(temp,optDecreaseExponent_));
   }
   
   alobj.reset();
@@ -371,7 +377,6 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   EExitStatus statusFlag;
   bool isSubproblemConverged = false;
   bool isForcedUpdate = false;
-  const Real oem2(1e-2);
   Real penaltyParameter, reduction, theta;
 
   // ========================================================================
@@ -445,14 +450,12 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
     isUpdated_ = false;
     for (unsigned i = 0; i < numberPenalties; ++i) {
       penaltyParameter = alobj->getPenaltyParameter(i);
-      // std::cout << "Dual Residuals " << i << ": " << dualResiduals[i] << " Scaling: " << alobj->getScaling(i) << " Tolerance: " << dualTolerances[i] << std::endl;
       if (isForcedUpdate || alobj->getScaling(i)*dualResiduals[i] > penaltyParameter*dualTolerances[i]) {
         penaltyParameter  *= penalty_growthf_[i];
         penaltyParameter   = std::min(penaltyParameter,maxPenaltyParam_);
         state_->searchSize = std::max(state_->searchSize,penaltyParameter);
         theta              = std::min(one/penaltyParameter,theta_);
         dualTolerances[i]  = tau0_*std::pow(theta,alphat_);
-        // dualTolerances[i]  = std::max(dualTolerances[i],oem2*outerFeasTolerance_);   // ROL convention
         alobj->setPenaltyParameter(penaltyParameter,i);
         isUpdated_ = true;
       }
@@ -465,8 +468,8 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
       }
     }
     reduction = isUpdated_ ? Real(0.9) : Real(0.25);
-    epsilon_ = std::max(oem2*outerOptTolerance_, reduction*epsilon_);
-    delta_   = std::max(oem2*outerFeasTolerance_,reduction*delta_);
+    epsilon_ = std::max(subproblemTolFactor_*outerOptTolerance_, reduction*epsilon_);
+    delta_   = std::max(subproblemTolFactor_*outerFeasTolerance_,reduction*delta_);
 
     alobj->reset();
 
