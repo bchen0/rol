@@ -54,6 +54,7 @@ private:
   Real outerOptTolerance_;
   Real outerFeasTolerance_;
   Real outerStepTolerance_;
+  int outerIterationLimit_;
   bool useRelTol_;
   // Scaling information
   bool useDefaultScaling_;

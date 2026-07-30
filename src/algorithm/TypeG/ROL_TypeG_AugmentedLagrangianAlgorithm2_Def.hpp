@@ -30,7 +30,8 @@ inline Ptr<TypeG::Algorithm<Real>> AlgorithmFactory(
 
 template<typename Real>
 AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterList &list, const Ptr<Secant<Real>> &secant )
-  : TypeG::Algorithm<Real>::Algorithm(), secant_(secant), list_(list), subproblemIter_(0) {
+  : TypeG::Algorithm<Real>::Algorithm(), secant_(secant), list_(list),
+    subproblemIter_(0), isUpdated_(false) {
   // Set status test
   status_->reset();
   status_->add(makePtr<ConstraintStatusTest<Real>>(list));
@@ -74,10 +75,11 @@ AugmentedLagrangianAlgorithm2<Real>::AugmentedLagrangianAlgorithm2( ParameterLis
   list_.sublist("General").set("Output Level",(print ? verbosity_ - 2 : 0));
 
   // Outer iteration tolerances
-  outerFeasTolerance_ = list.sublist("Status Test").get("Constraint Tolerance",    oem8);
-  outerOptTolerance_  = list.sublist("Status Test").get("Gradient Tolerance",      oem8);
-  outerStepTolerance_ = list.sublist("Status Test").get("Step Tolerance",          oem8);
-  useRelTol_          = list.sublist("Status Test").get("Use Relative Tolerances", false);
+  outerFeasTolerance_  = list.sublist("Status Test").get("Constraint Tolerance",    oem8);
+  outerOptTolerance_   = list.sublist("Status Test").get("Gradient Tolerance",      oem8);
+  outerStepTolerance_  = list.sublist("Status Test").get("Step Tolerance",          oem8);
+  outerIterationLimit_ = list.sublist("Status Test").get("Iteration Limit",          100);
+  useRelTol_           = list.sublist("Status Test").get("Use Relative Tolerances", false);
 
   // Augmented Lagrangian parameters
   useDefaultScaling_  = sublist.get("Use Default Problem Scaling",     true);
@@ -383,7 +385,24 @@ void AugmentedLagrangianAlgorithm2<Real>::run( Problem<Real> &problem,
   // STEP 3: Run algorithm
   // ========================================================================
 
-  while (status_->check(*state_)) {
+  while (true) {
+    bool continueAlgorithm = status_->check(*state_);
+
+    // A zero primal-dual step does not indicate stagnation when the preceding
+    // iteration updated the penalty model.  Solve the new subproblem before
+    // applying the step-tolerance stopping criterion.
+    if (!continueAlgorithm
+        && state_->statusFlag == EXITSTATUS_STEPTOL
+        && isUpdated_
+        && state_->iter < outerIterationLimit_) {
+      continueAlgorithm = true;
+      state_->statusFlag = EXITSTATUS_LAST;
+    }
+
+    if (!continueAlgorithm) {
+      break;
+    }
+
     // Solve augmented Lagrangian subproblem
     list_.sublist("Status Test").set("Gradient Tolerance",epsilon_);
     list_.sublist("Status Test").set("Constraint Tolerance",delta_);
