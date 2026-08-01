@@ -7,8 +7,8 @@ import threading
 from xml.etree import ElementTree
 from pyrol.getTypeName import *
 
-
 import numpy as np
+import torch
 
 from ._navier_stokes import _L1DynObjective, _NavierStokesObjective
 
@@ -171,9 +171,13 @@ class L1DynObjective(getTypeName('Objective')):
         return self._impl.theta
 
     def value(self, z, tol=1e-8):
+        if isinstance(z, torch.Tensor):
+            z = z.numpy()
         return self._impl.value(z, tol)
 
     def prox(self, z, step, tol=1e-8):
+        if isinstance(z, torch.Tensor):
+            z = z.numpy()
         return self._impl.prox(z, step, tol)
 
     def default_control(self):
