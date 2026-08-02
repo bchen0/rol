@@ -171,11 +171,19 @@ class L1DynObjective(getTypeName('Objective')):
         return self._impl.theta
 
     def value(self, z, tol=1e-8):
+        # Todo: Change this to check that z is of type TensorVector. Needs a little rearranging though
+        #  since TensorVector is defined outside this package (but doesn't have to be)
+        if hasattr(z, "torch_object"):
+            z = z.torch_object.numpy()
         if isinstance(z, torch.Tensor):
             z = z.numpy()
         return self._impl.value(z, tol)
 
     def prox(self, z, step, tol=1e-8):
+        # Todo: Change this to check that z is of type TensorVector. Needs a little rearranging though
+        #  since TensorVector is defined outside this package (but doesn't have to be)
+        if hasattr(z, "torch_object"):
+            z = z.torch_object.numpy()
         if isinstance(z, torch.Tensor):
             z = z.numpy()
         return self._impl.prox(z, step, tol)
