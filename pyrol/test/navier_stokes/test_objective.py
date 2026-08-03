@@ -6,11 +6,15 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 import numpy as np
+import torch
 
 from pyrol.navier_stokes import L1DynObjective, NavierStokesObjective
 
 
 HERE = Path(__file__).resolve().parent
+DATA = HERE
+if not (DATA / "input.xml").exists():
+    DATA = HERE.parents[2] / "example/PDE-OPT/dynamic/navier-stokes"
 
 
 def sublist(node, name):
@@ -29,7 +33,7 @@ def set_parameter(node, name, value):
 
 
 def write_smoke_xml(path):
-    tree = ElementTree.parse(HERE / "input.xml")
+    tree = ElementTree.parse(DATA / "input.xml")
     root = tree.getroot()
 
     problem = sublist(root, "Problem")
@@ -81,13 +85,35 @@ class TestNavierStokesObjective(unittest.TestCase):
             ])
             np.testing.assert_allclose(objective.prox(z, step), expected_prox)
 
+            torch_z = torch.tensor(z.tolist(), dtype=torch.float64)
+            reference_value = objective.value(z)
+            reference_prox = objective.prox(z, step)
+            self.assertAlmostEqual(objective.value(torch_z), reference_value)
+            np.testing.assert_allclose(
+                np.asarray(objective.prox(torch_z, step).tolist()),
+                reference_prox,
+            )
+
+            torch_prox = torch.empty_like(torch_z)
+            objective.prox(torch_prox, torch_z, step, 1e-8)
+            np.testing.assert_allclose(np.asarray(torch_prox.tolist()), reference_prox)
+
             outside_bounds = np.array([objective.upper_bound + 1.0, 0.0])
-            self.assertGreater(objective.value(outside_bounds), 1e300)
+            reference_outside_value = objective.value(outside_bounds)
+            torch_outside_bounds = torch.tensor(
+                outside_bounds.tolist(),
+                dtype=torch.float64,
+            )
+            np.testing.assert_allclose(
+                objective.value(torch_outside_bounds),
+                reference_outside_value,
+            )
+            self.assertGreater(reference_outside_value, 1e300)
 
     def test_value_gradient_and_hess_vec_shapes(self):
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp)
-            shutil.copy2(HERE / "channel.txt", work / "channel.txt")
+            shutil.copy2(DATA / "channel.txt", work / "channel.txt")
             xml_path = work / "input.xml"
             cache_dir = work / "cache"
             mesh_output_dir = work / "mesh_output"
