@@ -177,6 +177,8 @@ class L1DynObjective(getTypeName('Objective')):
             z = z.torch_object.numpy()
         if isinstance(z, torch.Tensor):
             z = z.numpy()
+        if len(z.shape) > 1:
+            z = z.squeeze()
         return self._impl.value(z, tol)
 
     def prox(self, z, step, tol=1e-8):
@@ -186,6 +188,8 @@ class L1DynObjective(getTypeName('Objective')):
             z = z.torch_object.numpy()
         if isinstance(z, torch.Tensor):
             z = z.numpy()
+        if len(z.shape) > 1:
+            z = z.squeeze()
         return self._impl.prox(z, step, tol)
 
     def default_control(self):
