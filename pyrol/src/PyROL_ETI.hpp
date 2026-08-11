@@ -20,7 +20,7 @@
 #include <ROL_Objective.hpp>
 #include <ROL_Objective_SimOpt.hpp>
 // #include <ROL_OED_Factory.hpp>
-#include <ROL_STORMAlgoritihm.hpp>
+#include <ROL_STORMAlgorithm.hpp>
 #include <ROL_PrimalDualRisk.hpp>
 #include <ROL_Problem.hpp>
 #include <ROL_ReducedDynamicObjective.hpp>
