@@ -24,7 +24,12 @@ jobs:
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
           | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt-get update
-        sudo apt-get install -y --no-install-recommends cmake ninja-build libopenblas-dev intel-oneapi-mkl-core-devel intel-oneapi-mkl-classic-include
+        MKL_CORE_DEVEL_PKG="$(apt-cache search --names-only '^intel-oneapi-mkl-core-devel-[0-9]' | awk '{print $1}' | grep -E '^intel-oneapi-mkl-core-devel-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
+        MKL_CLASSIC_INCLUDE_PKG="$(apt-cache search --names-only '^intel-oneapi-mkl-classic-include-[0-9]' | awk '{print $1}' | grep -E '^intel-oneapi-mkl-classic-include-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
+        test -n "${MKL_CORE_DEVEL_PKG}"
+        test -n "${MKL_CLASSIC_INCLUDE_PKG}"
+        echo "Using MKL packages: ${MKL_CORE_DEVEL_PKG} ${MKL_CLASSIC_INCLUDE_PKG}"
+        sudo apt-get install -y --no-install-recommends cmake ninja-build libopenblas-dev "${MKL_CORE_DEVEL_PKG}" "${MKL_CLASSIC_INCLUDE_PKG}"
         sudo apt-get install -y openmpi-bin libopenmpi-dev libsuitesparse-dev
         # see https://cppbinder.readthedocs.io/en/latest/install.html#id1
         sudo apt-get install -y clang-15 llvm-15 libclang-15-dev llvm-15-dev
@@ -175,7 +180,12 @@ jobs:
           repo_gpgcheck=1
           gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           EOF
-          dnf --setopt=install_weak_deps=False install -y openblas-devel ninja-build openmpi-devel suitesparse-devel intel-oneapi-mkl-core-devel intel-oneapi-mkl-classic-include
+          MKL_CORE_DEVEL_PKG="$(dnf repoquery --qf '%{name}' 'intel-oneapi-mkl-core-devel-*' | grep -E '^intel-oneapi-mkl-core-devel-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
+          MKL_CLASSIC_INCLUDE_PKG="$(dnf repoquery --qf '%{name}' 'intel-oneapi-mkl-classic-include-*' | grep -E '^intel-oneapi-mkl-classic-include-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
+          test -n "${MKL_CORE_DEVEL_PKG}"
+          test -n "${MKL_CLASSIC_INCLUDE_PKG}"
+          echo "Using MKL packages: ${MKL_CORE_DEVEL_PKG} ${MKL_CLASSIC_INCLUDE_PKG}"
+          dnf --setopt=install_weak_deps=False install -y openblas-devel ninja-build openmpi-devel suitesparse-devel "${MKL_CORE_DEVEL_PKG}" "${MKL_CLASSIC_INCLUDE_PKG}"
           test -f /opt/intel/oneapi/mkl/latest/include/mkl_pardiso.h
           test -f /opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so
         CIBW_BEFORE_BUILD: |
