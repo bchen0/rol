@@ -20,6 +20,7 @@
 #include <ROL_Objective.hpp>
 #include <ROL_Objective_SimOpt.hpp>
 // #include <ROL_OED_Factory.hpp>
+#include <ROL_STORMAlgoritihm.hpp>
 #include <ROL_PrimalDualRisk.hpp>
 #include <ROL_Problem.hpp>
 #include <ROL_ReducedDynamicObjective.hpp>
@@ -71,7 +72,8 @@
   BINDER_ETI_ABSTRACT(RiskNeutralObjective<SCALAR>) \
   BINDER_ETI_ABSTRACT(SampleGenerator<SCALAR>) \
   BINDER_ETI_ABSTRACT(StochasticProblem<SCALAR>) \
-  BINDER_ETI_ABSTRACT(UserInputGenerator<SCALAR>)
+  BINDER_ETI_ABSTRACT(UserInputGenerator<SCALAR>) \
+  BINDER_ETI_ABSTRACT(STORMAlgorithm<SCALAR>)
 
 #define BINDER_ROL_OED(SCALAR) \
   BINDER_ETI_ABSTRACT(Factory<SCALAR>)
