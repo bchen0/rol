@@ -159,7 +159,7 @@ jobs:
         output-dir: dist
         package-dir: ${{ env.SDIST_NAME }}
       env:
-        CIBW_BUILD: "cp3*"
+        CIBW_BUILD: "cp312-manylinux_x86_64"
         CIBW_SKIP: "*i686 *musllinux*"
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_LINUX: >
