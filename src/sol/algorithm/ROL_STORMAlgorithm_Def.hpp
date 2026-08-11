@@ -78,7 +78,7 @@ STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
   useInexact_.push_back(glist.get("Inexact Hessian-Times-A-Vector", false));
   // Trust-Region Inexactness Parameters
   ParameterList &ilist = trlist.sublist("Inexact").sublist("Gradient");
-  scale0_ = ilist.get("Tolerance Scaling",  static_cast<Real>(0.1));
+  scale0_ = ilist.get("Tolerance Scaling",  static_cast<Real>(1.e1));
   scale1_ = ilist.get("Relative Tolerance", static_cast<Real>(2));
   // Inexact Function Evaluation Information
   ParameterList &vlist = trlist.sublist("Inexact").sublist("Value");
@@ -106,8 +106,6 @@ STORMAlgorithm<Real>::STORMAlgorithm(const Ptr<Problem<Real>> &input,
   ParameterList &stormlist = parlist.sublist("SOL").sublist("STORM");
   alpha_ = stormlist.get("Gradient Required Accuracy Probability", static_cast<Real>(0.75));
   beta_ = stormlist.get("Computed Reduction Required Accuracy Probability", static_cast<Real>(0.75));
-  scaleValTol_ = stormlist.get("Scale Value Tolerance", static_cast<Real>(1.e-1));
-  scaleGradTol_ = stormlist.get("Scale Gradient Tolerance", static_cast<Real>(1.e1));
 
   if (vsampler_) {
     riskNeutralObjective_ = makePtr<RiskNeutralObjective<Real>>(
@@ -170,15 +168,26 @@ Real STORMAlgorithm<Real>::computeValue(Real inTol,
   const Real one(1);
   outTol = std::sqrt(ROL_EPSILON<Real>());
   sobj.update(x,UpdateType::Trial);
+
+  Real eta    = static_cast<Real>(0.999)*std::min(eta1_,one-eta2_);
   if (vsampler_) {
     if ( useInexact_[0] ) {
       throw std::logic_error("Not Implemented: STORM with inexactness coming \
       from both sampling and function/gradient evaluations");
     }
+    /*
+    Objective condition is 
+    P(|A_k-C_k| \le eta*P_k) >= beta,
+    which is equivalent to
+    P(|A_k-C_k|^2 \le eta^2*P_k^2) < 1-beta
 
-    // Calculate RHS of equation 15 in Proxstorm paper.
-    Real eta    = static_cast<Real>(0.999)*std::min(eta1_,one-eta2_);
-    Real samplingTol = eta*pRed*std::sqrt(one-beta_);
+    Markov's inequality gives us that the LHS is less than
+    E[|A_k-C_k|^2] / (eta^2*P_k^2)
+
+    So it suffices if 
+    E[|A_k-C_k|^2] < (1-beta)(eta^2*P_k^2)
+    */
+    Real samplingTol = eta*pRed*std::sqrt(one-beta_) / static_cast<Real>(2.);
 
     vsampler_ -> update(x);
     riskNeutralObjective_ -> update(x);
@@ -187,8 +196,7 @@ Real STORMAlgorithm<Real>::computeValue(Real inTol,
     return fval;
   } else {
     if ( useInexact_[0] ) {
-      int two(2); 
-      outTol   = scale_*static_cast<Real>(0.999)*std::pow(del, two);
+      outTol   = eta * pRed;
       fold     = sobj.value(xold,outTol); state_->nsval++;
     }
     // Evaluate objective function at new iterate
@@ -211,17 +219,32 @@ void STORMAlgorithm<Real>::computeGradient(const Vector<Real> &x,
                                                  Real &gtol,
                                                  Real &gnorm,
                                                  std::ostream &outStream) const {
+
   if (gsampler_) {
     if ( useInexact_[0] ) {
       throw std::logic_error("Not Implemented: STORM with inexactness coming \
       from both sampling and function/gradient evaluations");
     }
 
-    Real samplingTol = scaleGradTol_*std::abs(del)*(1-alpha_);
+    /*
+    Gradient assumption is 
+    P(\| \nabla M_k(X_k) - \nabla f(X_k)\| \le kappa_g*del) >= alpha,
+    which is equivalent to
+    P(\| \nabla M_k(X_k) - \nabla f(X_k)\|^2 \le kappa_g^2*del^2) < 1-alpha
+
+    Markov's inequality gives us that the LHS is less than
+    E[\| \nabla M_k(X_k) - \nabla f(X_k)\|^2] / (kappa_g^2*del^2)
+
+    So it suffices if 
+    E[\|\nabla M_k(X_k) - \nabla f(X_k)\|^2] < (1-alpha)(kappa_g^2*del^2)
+    */
+    Real samplingTol = scale0_*del*std::sqrt(1-alpha_);
 
     gsampler_ -> update(x);
     riskNeutralObjective_->update(x);
     riskNeutralObjective_->gradient(g, x, samplingTol);
+
+    std::cout << "N samples for grad = :" << gsampler_->numMySamples() << "\n";
   } else {
     if ( useInexact_[1] ) {
       Real gtol0 = scale0_*static_cast<Real>(0.999)*del;

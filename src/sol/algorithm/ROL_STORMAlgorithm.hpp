@@ -100,8 +100,6 @@ private:
   /// in ProxSTORM paper.
   Real beta_; /// Required accuracy probability for computed reduction. See 
   /// Assumption 4 in ProxSTORM paper.
-  Real scaleGradTol_;
-  Real scaleValTol_;
 
 public:
   STORMAlgorithm(const Ptr<Problem<Real>> &input,

@@ -56,8 +56,6 @@
     <ParameterList name="STORM">
       <Parameter name="Gradient Required Accuracy Probability"  type="double" value="0.99"  />
       <Parameter name="Computed Reduction Accuracy Probability" type="double" value="0.99"  />
-      <Parameter name="Scale Value Tolerance"                   type="double" value="1.e-1"  />
-      <Parameter name="Scale Gradient Tolerance"                type="double" value="1.e1"  />
     </ParameterList>
 
     <ParameterList name="Objective">
