@@ -163,29 +163,35 @@ jobs:
         CIBW_BUILD_VERBOSITY: 1
         CIBW_ENVIRONMENT_LINUX: >
           PATH=/usr/lib64/openmpi/bin:$PATH
-          LD_LIBRARY_PATH=/opt/intel/oneapi/mkl/latest/lib:/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH
-          MKLROOT=/opt/intel/oneapi/mkl/latest
-          MKL_LIB_DIR=/opt/intel/oneapi/mkl/latest/lib
+          LD_LIBRARY_PATH=/opt/intel-pypi-mkl/lib:/usr/lib64/openmpi/lib:$LD_LIBRARY_PATH
+          MKLROOT=/opt/intel-pypi-mkl
+          MKL_LIB_DIR=/opt/intel-pypi-mkl/lib
           MPICC=/usr/lib64/openmpi/bin/mpicc
           MPICXX=/usr/lib64/openmpi/bin/mpicxx
-          CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec -DTPL_ENABLE_MKL=ON -DTPL_ENABLE_PARDISO_MKL=ON -DAmesos2_ENABLE_PARDISO_MKL=ON -DMKL_INCLUDE_DIRS=/opt/intel/oneapi/mkl/latest/include -DMKL_LIBRARY_DIRS=/opt/intel/oneapi/mkl/latest/lib -DMKL_LIBRARY_NAMES=mkl_rt -DPARDISO_MKL_INCLUDE_DIRS=/opt/intel/oneapi/mkl/latest/include -DPARDISO_MKL_LIBRARY_DIRS=/opt/intel/oneapi/mkl/latest/lib -DPARDISO_MKL_LIBRARY_NAMES=mkl_rt'
+          CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec -DTPL_ENABLE_MKL=ON -DTPL_ENABLE_PARDISO_MKL=ON -DAmesos2_ENABLE_PARDISO_MKL=ON -DMKL_INCLUDE_DIRS=/opt/intel-pypi-mkl/include -DMKL_LIBRARY_DIRS=/opt/intel-pypi-mkl/lib -DMKL_LIBRARY_NAMES=mkl_rt -DPARDISO_MKL_INCLUDE_DIRS=/opt/intel-pypi-mkl/include -DPARDISO_MKL_LIBRARY_DIRS=/opt/intel-pypi-mkl/lib -DPARDISO_MKL_LIBRARY_NAMES=mkl_rt'
         CIBW_BEFORE_ALL_LINUX: |
           set -eux
-          cat > /etc/yum.repos.d/oneAPI.repo <<'EOF'
-          [oneAPI]
-          name=Intel oneAPI repository
-          baseurl=https://yum.repos.intel.com/oneapi
-          enabled=1
-          gpgcheck=1
-          repo_gpgcheck=1
-          gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          EOF
-          MKL_CORE_DEVEL_PKG="intel-oneapi-mkl-core-devel-2026.1"
-          MKL_CLASSIC_INCLUDE_PKG="intel-oneapi-mkl-classic-include-2026.1"
-          echo "Using MKL packages: ${MKL_CORE_DEVEL_PKG} ${MKL_CLASSIC_INCLUDE_PKG}"
-          timeout 30m dnf --setopt=install_weak_deps=False install -y openblas-devel ninja-build openmpi-devel suitesparse-devel "${MKL_CORE_DEVEL_PKG}" "${MKL_CLASSIC_INCLUDE_PKG}"
-          test -f /opt/intel/oneapi/mkl/latest/include/mkl_pardiso.h
-          test -f /opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so
+          dnf install -y openblas-devel ninja-build openmpi-devel suitesparse-devel
+          /opt/python/cp312-cp312/bin/python -m pip install --no-cache-dir --prefix=/opt/intel-pypi-mkl mkl==2026.1.0 mkl-devel==2026.1.0 mkl-include
+          MKL_PARDISO_HEADER="$(find /opt/intel-pypi-mkl -name mkl_pardiso.h -print -quit)"
+          MKL_RT_LIB="$(find /opt/intel-pypi-mkl -name libmkl_rt.so -print -quit)"
+          if [ -z "${MKL_RT_LIB}" ]; then
+            MKL_RT_LIB="$(find /opt/intel-pypi-mkl -name 'libmkl_rt.so.*' -print -quit)"
+          fi
+          test -n "${MKL_PARDISO_HEADER}"
+          test -n "${MKL_RT_LIB}"
+          mkdir -p /opt/intel-pypi-mkl/include /opt/intel-pypi-mkl/lib
+          if [ "$(dirname "${MKL_PARDISO_HEADER}")" != "/opt/intel-pypi-mkl/include" ]; then
+            ln -sf "$(dirname "${MKL_PARDISO_HEADER}")"/*.h /opt/intel-pypi-mkl/include/
+          fi
+          if [ "$(dirname "${MKL_RT_LIB}")" != "/opt/intel-pypi-mkl/lib" ]; then
+            ln -sf "$(dirname "${MKL_RT_LIB}")"/libmkl* /opt/intel-pypi-mkl/lib/
+          fi
+          if [ ! -f /opt/intel-pypi-mkl/lib/libmkl_rt.so ]; then
+            ln -sf "${MKL_RT_LIB}" /opt/intel-pypi-mkl/lib/libmkl_rt.so
+          fi
+          test -f /opt/intel-pypi-mkl/include/mkl_pardiso.h
+          test -f /opt/intel-pypi-mkl/lib/libmkl_rt.so
         CIBW_BEFORE_BUILD: |
           which mpicc
           which mpicxx
