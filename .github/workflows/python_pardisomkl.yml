@@ -168,6 +168,11 @@ jobs:
           MKL_LIB_DIR=/opt/intel-pypi-mkl/lib
           MPICC=/usr/lib64/openmpi/bin/mpicc
           MPICXX=/usr/lib64/openmpi/bin/mpicxx
+          OMPI_MCA_mtl=^ofi
+          OMPI_MCA_pml=ob1
+          OMPI_MCA_btl=self,tcp
+          OMPI_ALLOW_RUN_AS_ROOT=1
+          OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
           CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec -DTPL_ENABLE_MKL=ON -DTPL_ENABLE_PARDISO_MKL=ON -DAmesos2_ENABLE_PARDISO_MKL=ON -DMKL_INCLUDE_DIRS=/opt/intel-pypi-mkl/include -DMKL_LIBRARY_DIRS=/opt/intel-pypi-mkl/lib -DMKL_LIBRARY_NAMES=mkl_rt -DPARDISO_MKL_INCLUDE_DIRS=/opt/intel-pypi-mkl/include -DPARDISO_MKL_LIBRARY_DIRS=/opt/intel-pypi-mkl/lib -DPARDISO_MKL_LIBRARY_NAMES=mkl_rt'
         CIBW_BEFORE_ALL_LINUX: |
           set -eux
