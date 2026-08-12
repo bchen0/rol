@@ -173,6 +173,8 @@ jobs:
           OMPI_MCA_btl=self,tcp
           OMPI_ALLOW_RUN_AS_ROOT=1
           OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+          PYTHONFAULTHANDLER=1
+          PYTHONUNBUFFERED=1
           CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec -DTPL_ENABLE_MKL=ON -DTPL_ENABLE_PARDISO_MKL=ON -DAmesos2_ENABLE_PARDISO_MKL=ON -DMKL_INCLUDE_DIRS=/opt/intel-pypi-mkl/include -DMKL_LIBRARY_DIRS=/opt/intel-pypi-mkl/lib -DMKL_LIBRARY_NAMES=mkl_rt -DPARDISO_MKL_INCLUDE_DIRS=/opt/intel-pypi-mkl/include -DPARDISO_MKL_LIBRARY_DIRS=/opt/intel-pypi-mkl/lib -DPARDISO_MKL_LIBRARY_NAMES=mkl_rt'
         CIBW_BEFORE_ALL_LINUX: |
           set -eux
@@ -207,8 +209,13 @@ jobs:
           python -m pip install --no-binary=mpi4py --no-cache-dir mpi4py
           python -c "from mpi4py import MPI; print(MPI.Get_library_version())"
         CIBW_TEST_COMMAND_LINUX: |
-          cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest -v test_typeU.py
-          cd {project}/packages/rol/pyrol/test/navier_stokes && python -m unittest -v test_objective.py
+          set -eux
+          python -X faulthandler -c "import pyrol; print('import pyrol ok', flush=True)"
+          python -X faulthandler -c "import pyrol.navier_stokes; print('import pyrol.navier_stokes ok', flush=True)"
+          cd {project}/packages/rol/pyrol/test/algorithm
+          python -X faulthandler -u -m unittest -v test_typeU.py
+          cd {project}/packages/rol/pyrol/test/navier_stokes
+          python -X faulthandler -u -m unittest -v test_objective.py
     - name: Set artifact name
       run: |
         echo "ARTIFACT_NAME=wheels-linux-pardisomkl" >> $GITHUB_ENV
