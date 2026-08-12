@@ -171,6 +171,7 @@ jobs:
           MPICXX=/usr/lib64/openmpi/bin/mpicxx
           CMAKE_ARGS='-DCMAKE_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_C_COMPILER=/usr/lib64/openmpi/bin/mpicc -DMPI_CXX_COMPILER=/usr/lib64/openmpi/bin/mpicxx -DMPI_EXEC=/usr/lib64/openmpi/bin/mpiexec -DMPIEXEC_EXECUTABLE=/usr/lib64/openmpi/bin/mpiexec -DTPL_ENABLE_MKL=ON -DTPL_ENABLE_PARDISO_MKL=ON -DAmesos2_ENABLE_PARDISO_MKL=ON -DMKL_INCLUDE_DIRS=/opt/intel/oneapi/mkl/latest/include -DMKL_LIBRARY_DIRS=/opt/intel/oneapi/mkl/latest/lib -DMKL_LIBRARY_NAMES=mkl_rt -DPARDISO_MKL_INCLUDE_DIRS=/opt/intel/oneapi/mkl/latest/include -DPARDISO_MKL_LIBRARY_DIRS=/opt/intel/oneapi/mkl/latest/lib -DPARDISO_MKL_LIBRARY_NAMES=mkl_rt'
         CIBW_BEFORE_ALL_LINUX: |
+          rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           cat > /etc/yum.repos.d/oneAPI.repo <<'EOF'
           [oneAPI]
           name=Intel oneAPI repository
@@ -180,12 +181,12 @@ jobs:
           repo_gpgcheck=1
           gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           EOF
-          MKL_CORE_DEVEL_PKG="$(dnf repoquery --qf '%{name}' 'intel-oneapi-mkl-core-devel-*' | grep -E '^intel-oneapi-mkl-core-devel-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
-          MKL_CLASSIC_INCLUDE_PKG="$(dnf repoquery --qf '%{name}' 'intel-oneapi-mkl-classic-include-*' | grep -E '^intel-oneapi-mkl-classic-include-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
+          MKL_CORE_DEVEL_PKG="$(timeout 10m dnf -y repoquery --qf '%{name}' 'intel-oneapi-mkl-core-devel-*' | grep -E '^intel-oneapi-mkl-core-devel-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
+          MKL_CLASSIC_INCLUDE_PKG="$(timeout 10m dnf -y repoquery --qf '%{name}' 'intel-oneapi-mkl-classic-include-*' | grep -E '^intel-oneapi-mkl-classic-include-[0-9]+[.][0-9]+$' | sort -V | tail -n 1)"
           test -n "${MKL_CORE_DEVEL_PKG}"
           test -n "${MKL_CLASSIC_INCLUDE_PKG}"
           echo "Using MKL packages: ${MKL_CORE_DEVEL_PKG} ${MKL_CLASSIC_INCLUDE_PKG}"
-          dnf --setopt=install_weak_deps=False install -y openblas-devel ninja-build openmpi-devel suitesparse-devel "${MKL_CORE_DEVEL_PKG}" "${MKL_CLASSIC_INCLUDE_PKG}"
+          timeout 30m dnf --setopt=install_weak_deps=False install -y openblas-devel ninja-build openmpi-devel suitesparse-devel "${MKL_CORE_DEVEL_PKG}" "${MKL_CLASSIC_INCLUDE_PKG}"
           test -f /opt/intel/oneapi/mkl/latest/include/mkl_pardiso.h
           test -f /opt/intel/oneapi/mkl/latest/lib/libmkl_rt.so
         CIBW_BEFORE_BUILD: |
