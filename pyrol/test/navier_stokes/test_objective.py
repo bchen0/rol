@@ -6,7 +6,11 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 import numpy as np
-import torch
+
+try:
+    import torch
+except ModuleNotFoundError:
+    torch = None
 
 from pyrol.navier_stokes import L1DynObjective, NavierStokesObjective
 
@@ -85,30 +89,32 @@ class TestNavierStokesObjective(unittest.TestCase):
             ])
             np.testing.assert_allclose(objective.prox(z, step), expected_prox)
 
-            torch_z = torch.tensor(z.tolist(), dtype=torch.float64)
             reference_value = objective.value(z)
             reference_prox = objective.prox(z, step)
-            self.assertAlmostEqual(objective.value(torch_z), reference_value)
-            np.testing.assert_allclose(
-                np.asarray(objective.prox(torch_z, step).tolist()),
-                reference_prox,
-            )
-
-            torch_prox = torch.empty_like(torch_z)
-            objective.prox(torch_prox, torch_z, step, 1e-8)
-            np.testing.assert_allclose(np.asarray(torch_prox.tolist()), reference_prox)
-
             outside_bounds = np.array([objective.upper_bound + 1.0, 0.0])
             reference_outside_value = objective.value(outside_bounds)
-            torch_outside_bounds = torch.tensor(
-                outside_bounds.tolist(),
-                dtype=torch.float64,
-            )
-            np.testing.assert_allclose(
-                objective.value(torch_outside_bounds),
-                reference_outside_value,
-            )
             self.assertGreater(reference_outside_value, 1e300)
+
+            if torch is not None:
+                torch_z = torch.tensor(z.tolist(), dtype=torch.float64)
+                self.assertAlmostEqual(objective.value(torch_z), reference_value)
+                np.testing.assert_allclose(
+                    np.asarray(objective.prox(torch_z, step).tolist()),
+                    reference_prox,
+                )
+
+                torch_prox = torch.empty_like(torch_z)
+                objective.prox(torch_prox, torch_z, step, 1e-8)
+                np.testing.assert_allclose(np.asarray(torch_prox.tolist()), reference_prox)
+
+                torch_outside_bounds = torch.tensor(
+                    outside_bounds.tolist(),
+                    dtype=torch.float64,
+                )
+                np.testing.assert_allclose(
+                    objective.value(torch_outside_bounds),
+                    reference_outside_value,
+                )
 
     def test_value_gradient_and_hess_vec_shapes(self):
         with tempfile.TemporaryDirectory() as tmp:

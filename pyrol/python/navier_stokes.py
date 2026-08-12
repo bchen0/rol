@@ -9,7 +9,11 @@ from xml.etree import ElementTree
 from pyrol.getTypeName import *
 
 import numpy as np
-import torch
+
+try:
+    import torch
+except ModuleNotFoundError:
+    torch = None
 
 from ._navier_stokes import _L1DynObjective, _NavierStokesObjective
 
@@ -85,6 +89,9 @@ def _navier_stokes_default_control(xml_path, num_controls):
 
 
 def _torch_tensor_data(value):
+    if torch is None:
+        return None
+
     flat = getattr(value, "flat", None)
     if isinstance(flat, torch.Tensor):
         return flat
@@ -104,6 +111,9 @@ def _torch_tensor_data(value):
 
 
 def _set_torch_tensor_data(target, source):
+    if torch is None:
+        raise TypeError("target is not backed by a torch.Tensor")
+
     flat = getattr(target, "flat", None)
     if isinstance(flat, torch.Tensor):
         flat.view(-1).copy_(source.view(-1))

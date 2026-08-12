@@ -206,10 +206,9 @@ jobs:
           mpicc --showme:version
           python -m pip install --no-binary=mpi4py --no-cache-dir mpi4py
           python -c "from mpi4py import MPI; print(MPI.Get_library_version())"
-        CIBW_TEST_REQUIRES_LINUX: "torch"
         CIBW_TEST_COMMAND_LINUX: |
-          cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest test_typeU.py
-          cd {project}/packages/rol/pyrol/test/navier_stokes && python -m unittest test_objective.py
+          cd {project}/packages/rol/pyrol/test/algorithm && python -m unittest -v test_typeU.py
+          cd {project}/packages/rol/pyrol/test/navier_stokes && python -m unittest -v test_objective.py
     - name: Set artifact name
       run: |
         echo "ARTIFACT_NAME=wheels-linux-pardisomkl" >> $GITHUB_ENV
